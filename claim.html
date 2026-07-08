@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#06132b" />
+    <title>领取分红</title>
+    <link rel="stylesheet" href="./claim.css?v=20260630-1" />
+    <script type="module" src="./claim.js?v=20260630-1"></script>
+  </head>
+  <body>
+    <main class="claim-shell">
+      <header class="topbar">
+        <a class="brand" href="./claim.html" aria-label="领取分红首页">
+          <img src="./mint2-avatar.jpg" alt="" />
+          <span>领取分红</span>
+        </a>
+        <div class="wallet-area">
+          <div class="wallet-meta">
+            <span id="networkName">BNB Smart Chain</span>
+            <strong id="walletAddress">未连接</strong>
+          </div>
+          <button id="switchNetwork" class="icon-button" type="button" title="切换到 BNB Smart Chain" aria-label="切换网络">↻</button>
+          <button id="connectWallet" class="connect-button" type="button">连接钱包</button>
+        </div>
+      </header>
+
+      <section id="contractSetup" class="contract-setup" hidden>
+        <label for="contractAddress">分红合约地址</label>
+        <div class="setup-row">
+          <input id="contractAddress" autocomplete="off" placeholder="0x..." />
+          <button id="loadContract" type="button">读取合约</button>
+        </div>
+      </section>
+
+      <section class="reward-stage">
+        <div class="stage-copy">
+          <p class="eyebrow">HOLDER REWARDS</p>
+          <h1 id="tokenName">分红中心</h1>
+          <p class="stage-text">持币权益 · 链上结算</p>
+          <div class="token-badges">
+            <span id="tokenSymbol">TOKEN</span>
+            <span id="rewardSymbol">BNB 分红</span>
+          </div>
+        </div>
+        <div class="avatar-frame" aria-hidden="true">
+          <img src="./mint2-avatar.jpg" alt="" />
+        </div>
+      </section>
+
+      <section class="claim-workspace">
+        <div class="amount-panel">
+          <p class="panel-label">当前可领取</p>
+          <strong id="totalPending">0 BNB</strong>
+          <span id="eligibility">连接钱包后读取</span>
+        </div>
+
+        <div class="breakdown" aria-label="分红明细">
+          <div>
+            <span>持币分红</span>
+            <strong id="tokenPending">0 BNB</strong>
+          </div>
+          <div>
+            <span>LP 分红</span>
+            <strong id="lpPending">0 BNB</strong>
+          </div>
+          <div>
+            <span>分红储备</span>
+            <strong id="dividendReserve">0 BNB</strong>
+          </div>
+        </div>
+
+        <button id="claimDividends" class="claim-button" type="button" disabled>领取全部分红</button>
+        <p id="notice" class="notice" aria-live="polite"></p>
+      </section>
+    </main>
+  </body>
+</html>

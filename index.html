@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GOLDLAUNCH 发射台</title>
+    <link rel="stylesheet" href="./styles.css?v=20260701-time-limit" />
+    <script type="module" src="./app.js?v=20260701-time-limit"></script>
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar">
+        <a href="../index.html" style="display:inline-block;margin-bottom:12px;color:var(--gold,#D4A017);font-size:13px;text-decoration:none;font-weight:600;">&larr; 返回首页</a>
+        <div>
+          <p class="eyebrow">GOLDLAUNCH Token V1</p>
+          <h1>部署与管理员控制台</h1>
+        </div>
+        <button id="connectWallet" class="primary">连接钱包</button>
+        <div class="wallet-card">
+          <span>当前钱包</span>
+          <strong id="walletAddress">未连接</strong>
+          <span>网络</span>
+          <strong id="networkName">未知</strong>
+        </div>
+        <nav class="tabs" aria-label="功能切换">
+          <button class="tab active" data-tab="deploy">部署</button>
+          <button class="tab" data-tab="mint">用户 Mint</button>
+          <button class="tab" data-tab="admin">管理员</button>
+        </nav>
+      </aside>
+
+      <main>
+        <section id="deploy" class="panel active">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Step 1</p>
+              <h2>配置并部署合约</h2>
+            </div>
+            <button id="compileContract" class="secondary">编译合约</button>
+          </div>
+
+          <form id="deployForm" class="deploy-form">
+            <fieldset id="templateSelector">
+              <legend>模板版本</legend>
+              <div class="grid">
+                <label>部署模板
+                  <select name="templateVersion" id="templateVersion">
+                    <option value="light">轻量基础版</option>
+                    <option value="mint">Mint 专用版</option>
+                    <option value="tax">标准税收版</option>
+                    <option value="mintTax">Mint + 税收版</option>
+                    <option value="dividendExternal">独立分红版</option>
+                    <option value="lpDividend">LP 分红版</option>
+                    <option value="advanced">高级限制版</option>
+                    <option value="trade">纯交易版</option>
+                  </select>
+                </label>
+              </div>
+              <div id="templateSummary" class="template-summary"></div>
+              <div id="templateDetails" class="template-details"></div>
+              <div class="template-guide-block">
+                <h3 class="template-block-title">部署说明</h3>
+                <div id="templateDeployGuide" class="template-details"></div>
+              </div>
+              <div class="template-guide-block">
+                <h3 class="template-block-title">后台功能说明</h3>
+                <div id="templateAdminGuide" class="template-details"></div>
+              </div>
+              <div class="template-guide-block">
+                <h3 class="template-block-title">推荐默认参数</h3>
+                <div id="templateRecommendGuide" class="template-details"></div>
+              </div>
+            </fieldset>
+            <fieldset id="featureSelector">
+              <legend>功能模块</legend>
+              <div class="grid">
+                <label><input type="checkbox" name="featureMint" checked /> 启用 Mint 发射</label>
+                <label><input type="checkbox" name="featureTax" checked /> 启用税率与税收分配</label>
+                <label><input type="checkbox" name="featureDividend" /> 启用持币分红</label>
+                <label><input type="checkbox" name="featureLPDividend" /> 启用 LP 分红</label>
+                <label><input type="checkbox" name="featureLimits" /> 启用限购与白名单</label>
+              </div>
+              <div id="featureSummary" class="form-hint">当前按所选模块决定页面显示、部署参数与源码轻重。</div>
+            </fieldset>
+            <fieldset id="baseInfoSection">
+              <legend>基础信息</legend>
+              <div class="grid">
+                <label>代币名称<input name="name" value="GOLDLAUNCH" required /></label>
+                <label>代币符号<input name="symbol" value="GOLD" required /></label>
+                <label>总供应量<input name="totalSupply" type="text" inputmode="decimal" value="100" pattern="(?:0|[1-9]\d*)(?:\.\d{1,18})?" title="请输入普通数字，最多18位小数，不要使用科学计数法" required /></label>
+              </div>
+            </fieldset>
+
+            <fieldset id="networkSection">
+              <legend>网络地址</legend>
+              <div class="grid">
+                <label>Mint 模式<select name="mintMode"><option value="0">BNB</option><option value="1">USDT</option></select></label>
+                <label>USDT 地址 <small style="color:#D4A017;font-weight:400">（USDT暂不可用）</small><input name="usdtAddress" placeholder="连接钱包后自动填写" /></label>
+                <label>Router 地址<input name="router" placeholder="连接钱包后自动填写" required /></label>
+              </div>
+            </fieldset>
+
+            <fieldset id="mintSection" data-template-feature="mint">
+              <legend>Mint 配置</legend>
+              <div class="grid">
+                <label>单次 Mint 价格<input name="mintPrice" type="number" step="0.000000000000000001" value="0.01" required /></label>
+                <label>单次 Mint 代币数<input name="tokenPerMint" type="number" value="1000000" min="0.000000000000000001" step="any" required /></label>
+                <label>最大 Mint 次数<input name="maxMintCount" type="number" value="1000" min="1" required /></label>
+                <label>用户到账方式<select name="userMintMode"><option value="0">按比例</option><option value="1">按固定数量</option></select></label>
+                <label id="userMintShareField">用户拿到代币比例 %<input name="userMintShare" type="number" value="70" min="0" max="100" step="0.01" required /></label>
+                <label id="userMintAmountField">用户每次到账数量<input name="userMintAmount" type="number" value="700000" min="0" step="any" required disabled /></label>
+                <label>进入流动性的募集资金 %<input name="lpFundShare" type="number" value="80" min="0" max="100" step="0.01" required /></label>
+                <label>目标开盘单价<input name="targetLaunchPrice" type="text" inputmode="decimal" placeholder="输入后自动计算单次Mint代币数" /><small id="targetLaunchPriceCurrency">BNB/枚</small></label>
+                <label>Mint 生成的 LP 归属<select name="mintLPRecipientMode"><option value="0">部署钱包</option><option value="1">执行 Mint 的用户钱包</option></select></label>
+              </div>
+              <div id="targetLaunchPriceHint" class="form-hint"></div>
+              <div id="deployHints" class="mini-stats"></div>
+            </fieldset>
+
+            <fieldset id="taxSection" data-template-feature="tax">
+              <legend>税率</legend>
+              <div class="grid">
+                <label>买入税 %<input name="buyTax" type="number" value="0" min="0" max="5" step="0.01" required /></label>
+                <label>卖出税 %<input name="sellTax" type="number" value="0" min="0" max="100" step="0.01" required /></label>
+                <label>转账税 %<input name="transferTax" type="number" value="0" min="0" max="5" step="0.01" required /></label>
+              </div>
+            </fieldset>
+
+            <fieldset id="taxShareSection" data-template-feature="tax dividend lpDividend">
+              <legend>税收分配</legend>
+              <div class="share-grid">
+                <label class="share-control">营销钱包 %<input name="marketingShare" type="range" value="100" min="0" max="100" step="0.01" /><input name="marketingShareNumber" type="number" value="100" min="0" max="100" step="0.01" /></label>
+                <label class="share-control">代币销毁 %<input name="burnShare" type="range" value="0" min="0" max="100" step="0.01" /><input name="burnShareNumber" type="number" value="0" min="0" max="100" step="0.01" /></label>
+                <label class="share-control">回流 LP %<input name="lpShare" type="range" value="0" min="0" max="100" step="0.01" /><input name="lpShareNumber" type="number" value="0" min="0" max="100" step="0.01" /></label>
+                <label class="share-control">持币分红 %<input name="dividendShare" type="range" value="0" min="0" max="100" step="0.01" /><input name="dividendShareNumber" type="number" value="0" min="0" max="100" step="0.01" /></label>
+              </div>
+              <div id="taxShareHint" class="form-hint ok">税收分配合计 100%</div>
+              <div class="grid share-extra">
+                <label>分红去向<select name="dividendTargetMode"><option value="0">持币分红</option><option value="1">LP 分红</option></select></label>
+                <label>分红模式<select name="dividendMode"><option value="external">独立分红合约</option></select></label>
+                <label>分红管理员钱包<input name="dividendOwner" placeholder="留空默认部署钱包" /></label>
+                <label>分红代币地址<input name="rewardToken" placeholder="留空=默认；BNB底池分USDT则填USDT地址" /></label>
+                <label>持币分红最低持仓<input name="minTokenDividendBalance" type="number" value="0" min="0" step="1" /></label>
+              </div>
+            </fieldset>
+
+            <fieldset id="limitsSection" data-template-feature="limits">
+              <legend>限购</legend>
+              <div class="grid">
+                <label>买入限购<select name="buyLimitEnabled"><option value="false">关闭</option><option value="true">开启</option></select></label>
+                <label>单钱包累计限购代币数<input name="maxBuyAmountPerWallet" type="number" value="0" min="0" step="1" /></label>
+                <label>金额限购<select name="buyAmountLimitEnabled"><option value="false">关闭</option><option value="true">开启</option></select></label>
+                <label>单钱包累计限购金额（BNB/USDT）<input name="maxBuyBaseAmountPerWallet" type="number" value="0.1" min="0" step="0.000000000000000001" /></label>
+                <label>时间金额限购<select name="timedBuyLimitEnabled"><option value="false">关闭</option><option value="true">开启</option></select></label>
+                <label>第 1 档：结束分钟<input name="timedBuyLimitMinute1" type="number" value="3" min="0" step="1" /></label>
+                <label>第 1 档：金额上限（BNB/USDT）<input name="timedBuyLimitAmount1" type="number" value="5" min="0" step="0.000000000000000001" /></label>
+                <label>第 2 档：结束分钟<input name="timedBuyLimitMinute2" type="number" value="6" min="0" step="1" /></label>
+                <label>第 2 档：金额上限（BNB/USDT）<input name="timedBuyLimitAmount2" type="number" value="10" min="0" step="0.000000000000000001" /></label>
+                <label>第 3 档：结束分钟<input name="timedBuyLimitMinute3" type="number" value="10" min="0" step="1" /></label>
+                <label>第 3 档：金额上限（BNB/USDT）<input name="timedBuyLimitAmount3" type="number" value="20" min="0" step="0.000000000000000001" /></label>
+                <label>买入白名单<select name="buyWhitelistEnabled"><option value="false">关闭</option><option value="true">开启</option></select></label>
+                <label>开盘前买入白名单<select name="preLaunchBuyWhitelistEnabled"><option value="false">关闭</option><option value="true">开启</option></select></label>
+              </div>
+            </fieldset>
+
+            <fieldset id="launchSection" data-template-feature="launch">
+              <legend>开盘与钱包</legend>
+              <div class="grid">
+                <label>开盘模式<select name="launchMode"><option value="0">手动</option><option value="1">定时</option><option value="2">Mint 满自动</option></select></label>
+                <label>开盘时间<input name="launchTime" type="datetime-local" /></label>
+                <label>营销钱包<input name="marketingWallet" placeholder="默认使用部署钱包" /></label>
+              </div>
+            </fieldset>
+
+            <fieldset id="vanitySection">
+              <legend>尾号定制</legend>
+              <div class="grid">
+                <label>合约尾号定制<select name="vanityEnabled"><option value="false">关闭</option><option value="true">开启</option></select></label>
+                <label>目标尾号<input name="vanitySuffix" placeholder="例如 8888，最多 5 位十六进制" maxlength="5" /></label>
+              </div>
+              <div id="vanityHint" class="form-hint">开启后会先部署 CREATE2 工厂，再部署目标尾号 Token。Owner 仍是当前钱包。</div>
+            </fieldset>
+
+            <button class="primary wide" type="submit">部署合约</button>
+            <div id="templateAdminHint" class="form-hint">选择模板后，部署项、后台操作和说明会一起切换。</div>
+          </form>
+          <div id="verificationBox" class="downloads" hidden>
+            <h3>验证开源材料</h3>
+            <a id="downloadStandardJson" download="verify-standard-json-input.json">下载 Standard JSON</a>
+            <a id="downloadConstructorArgs" download="constructor-args.txt">下载构造参数编码</a>
+            <a id="downloadDeploymentInfo" download="deployment-info.json">下载部署记录</a>
+          </div>
+        </section>
+
+        <section id="mint" class="panel">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Public</p>
+              <h2>用户 Mint 页面</h2>
+            </div>
+          </div>
+          <div class="grid compact">
+            <label>合约地址<input id="mintContractAddress" placeholder="部署后会自动填入" /></label>
+            <button id="loadMintInfo" class="secondary">读取 Mint 信息</button>
+          </div>
+          <div id="mintStats" class="stats"></div>
+          <button id="mintNow" class="primary">立即 Mint</button>
+          <button id="claimDividends" class="secondary">领取分红</button>
+        </section>
+
+        <section id="admin" class="panel">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Owner</p>
+              <h2>管理员后续操作</h2>
+            </div>
+            <button id="refreshAdmin" class="secondary">刷新状态</button>
+          </div>
+          <div class="grid compact">
+            <label>合约地址<input id="adminContractAddress" placeholder="部署后会自动填入" /></label>
+            <button id="loadAdmin" class="secondary">加载合约</button>
+          </div>
+          <div id="adminStats" class="stats"></div>
+
+          <div class="admin-groups">
+            <article data-template-feature="mint launch">
+              <h3>Mint 与开盘</h3>
+              <div class="row"><input id="newMintPrice" placeholder="新 Mint 价格" /><button data-action="setMintPrice">设置价格</button></div>
+              <div class="row"><input id="newTokenPerMint" placeholder="新单次代币数" type="number" min="0" step="any" /><button data-action="setTokenPerMint">设置数量</button></div>
+              <div class="row"><input id="newMaxMintCount" placeholder="新最大次数" /><button data-action="setMaxMintCount">设置上限</button></div>
+              <div class="row"><input id="newLaunchTime" type="datetime-local" /><button data-action="setLaunchTime">设置时间</button></div>
+              <button data-action="openTrading">开启交易</button>
+              <button data-action="enableLiquidityRemoval">永久允许撤除 LP</button>
+              <button data-action="closeMint">关闭 Mint</button>
+              <button data-action="pause">暂停</button>
+              <button data-action="unpause">恢复</button>
+              <button data-action="disablePauseForever">永久禁用暂停</button>
+            </article>
+
+            <article data-template-feature="limits dividend lpDividend">
+              <h3>名单管理</h3>
+              <div class="row"><select id="whitelistEnabled"><option value="true">开启白名单</option><option value="false">关闭白名单</option></select><button data-action="setWhitelistEnabled">保存</button></div>
+              <div class="row"><select id="buyWhitelistEnabled"><option value="true">开启买入白名单</option><option value="false">关闭买入白名单</option></select><button data-action="setBuyWhitelistEnabled">保存</button></div>
+              <div class="row"><select id="preLaunchBuyWhitelistEnabled"><option value="true">开启开盘前买入白名单</option><option value="false">关闭开盘前买入白名单</option></select><button data-action="setPreLaunchBuyWhitelistEnabled">保存</button></div>
+              <div class="row"><input id="listAddress" placeholder="钱包地址" /><select id="listValue"><option value="true">加入</option><option value="false">移除</option></select></div>
+              <button data-action="setWhitelist">白名单</button>
+              <button data-action="setBuyWhitelist">买入白名单</button>
+              <button data-action="setPreLaunchBuyWhitelist">开盘前买入白名单</button>
+              <button data-action="setExcludedFromDividends">分红排除名单</button>
+              <textarea id="batchListAddresses" rows="6" placeholder="批量地址，一行一个"></textarea>
+              <button data-action="batchSetWhitelist">批量白名单</button>
+              <button data-action="batchSetBuyWhitelist">批量买入白名单</button>
+              <button data-action="batchSetPreLaunchBuyWhitelist">批量开盘前买入白名单</button>
+              <button data-action="batchSetExcludedFromDividends">批量分红排除名单</button>
+              <button data-action="setExcludedFromFee">手续费排除</button>
+              <button data-action="lockFeeExemptions">锁定免税名单</button>
+            </article>
+
+            <article data-template-feature="tax dividend lpDividend">
+              <h3>税率与分配</h3>
+              <div class="row"><input id="buyTax" placeholder="买税 BP" /><button data-action="setBuyTax">设置买税</button></div>
+              <div class="row"><input id="sellTax" placeholder="卖税 BP，最高10000" /><button data-action="setSellTax">设置卖税</button></div>
+              <div class="row"><input id="transferTax" placeholder="转账税 BP" /><button data-action="setTransferTax">设置转账税</button></div>
+              <div class="row four"><input id="marketingShare" placeholder="营销 BP" /><input id="burnShare" placeholder="销毁 BP" /><input id="lpShare" placeholder="LP BP" /><input id="dividendShare" placeholder="分红 BP" /></div>
+              <button data-action="setTaxShares">设置分配比例</button>
+              <button data-action="lockTaxes">锁定税率与分配</button>
+              <div class="row"><input id="marketingWallet" placeholder="营销钱包" /><button data-action="setMarketingWallet">设置钱包</button></div>
+              <div class="row"><input id="rewardTokenAdmin" placeholder="分红代币地址，留空=默认" /><button data-action="setRewardToken">设置分红代币</button></div>
+              <div class="row"><input id="swapThreshold" placeholder="Swap 阈值" /><button data-action="setSwapThreshold">设置阈值</button></div>
+              <button data-action="forceSwapBack">执行 SwapBack</button>
+            </article>
+
+            <article data-template-feature="limits">
+              <h3>买入限购</h3>
+              <div class="row"><select id="buyLimitEnabled"><option value="true">开启限购</option><option value="false">关闭限购</option></select><button data-action="setBuyLimitEnabled">保存</button></div>
+              <div class="row"><input id="maxBuyAmountPerWallet" placeholder="单钱包累计限购代币数" /><button data-action="setMaxBuyAmountPerWallet">设置数量</button></div>
+              <div class="row"><select id="buyAmountLimitEnabled"><option value="true">开启金额限购</option><option value="false">关闭金额限购</option></select><button data-action="setBuyAmountLimitEnabled">保存</button></div>
+              <div class="row"><input id="maxBuyBaseAmountPerWallet" placeholder="累计金额上限，如 0.1" /><button data-action="setMaxBuyBaseAmountPerWallet">设置金额</button></div>
+              <div class="row"><select id="timedBuyLimitEnabled"><option value="true">开启时间金额限购</option><option value="false">关闭时间金额限购</option></select><button data-action="setTimedBuyLimitEnabled">保存</button></div>
+              <div class="row three"><input id="timedBuyLimitMinute1" placeholder="第1档分钟" /><input id="timedBuyLimitAmount1" placeholder="第1档金额" /><button data-action="setTimedBuyLimitTier1">保存第1档</button></div>
+              <div class="row three"><input id="timedBuyLimitMinute2" placeholder="第2档分钟" /><input id="timedBuyLimitAmount2" placeholder="第2档金额" /><button data-action="setTimedBuyLimitTier2">保存第2档</button></div>
+              <div class="row three"><input id="timedBuyLimitMinute3" placeholder="第3档分钟" /><input id="timedBuyLimitAmount3" placeholder="第3档金额" /><button data-action="setTimedBuyLimitTier3">保存第3档</button></div>
+            </article>
+
+            <article data-template-feature="dividend lpDividend tax">
+              <h3>分红、流动性与提现</h3>
+              <div class="row"><input id="minTokenDividendBalance" placeholder="持币分红最低持仓" /><button data-action="setMinTokenDividendBalance">设置门槛</button></div>
+              <div class="row"><select id="autoDividendEnabled"><option value="true">开启自动分红</option><option value="false">关闭自动分红</option></select><button data-action="setAutoDividendEnabled">保存</button></div>
+              <div class="row"><input id="autoDividendBatchSize" placeholder="每次处理地址数，默认5" /><button data-action="setAutoDividendBatchSize">设置批次</button></div>
+              <button data-action="processPendingDividends">执行分红处理</button>
+              <div class="row"><input id="dividendAmount" placeholder="分红金额" /><button data-action="fundTokenDividend">代币持有人分红</button></div>
+              <div class="row"><input id="lpDividendAmount" placeholder="LP 分红金额" /><button data-action="fundLPDividend">LP 分红</button></div>
+              <div class="row"><input id="liqTokenAmount" placeholder="代币数量" /><input id="liqFundAmount" placeholder="资金数量" /><button data-action="forceAddLiquidity">加池</button></div>
+              <div class="row"><input id="withdrawBNBAmount" placeholder="BNB 数量，空为全部" /><button data-action="withdrawBNB">提取 BNB</button></div>
+              <div class="row"><input id="withdrawTokenAddress" placeholder="代币地址" /><input id="withdrawTokenAmount" placeholder="数量，空为全部" /><button data-action="withdrawToken">提取代币</button></div>
+              <div class="row"><input id="withdrawDividendReserveAmount" placeholder="分红储备数量，空为全部" /><button data-action="withdrawDividendReserve">提取分红储备</button></div>
+              <div class="row"><input id="withdrawLPAmount" placeholder="LP 数量，空为全部" /><button data-action="withdrawLP">提取 LP</button></div>
+            </article>
+
+            <article class="danger-zone">
+              <h3>永久丢弃管理员权限</h3>
+              <p class="danger-note">不可恢复，仅允许在交易已经开启后操作。</p>
+              <div class="row"><input id="renounceConfirmation" autocomplete="off" placeholder="输入 RENOUNCE 确认" /><button class="danger" data-action="renounceOwnership">永久丢弃权限</button></div>
+            </article>
+          </div>
+        </section>
+
+        <pre id="log" aria-live="polite"></pre>
+      </main>
+    </div>
+  </body>
+</html>

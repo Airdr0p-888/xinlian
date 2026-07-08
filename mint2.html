@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mint Portal</title>
+    <link id="themeCss" rel="stylesheet" href="./mint2.css" />
+    <script>
+      const assetVersion = Date.now();
+      document.getElementById("themeCss").href = `./mint2.css?v=${assetVersion}`;
+      const mintScript = document.createElement("script");
+      mintScript.type = "module";
+      mintScript.src = `./mint2.js?v=${assetVersion}`;
+      document.head.appendChild(mintScript);
+    </script>
+  </head>
+  <body>
+    <main class="page">
+      <header class="top-nav">
+        <div class="brand-mark">
+          <img src="./mint2-avatar.jpg" alt="Mint avatar" />
+          <strong>Mint</strong>
+        </div>
+        <div class="account-strip">
+          <div class="account-chip">
+            <span>&#38065;&#21253;</span>
+            <strong id="walletAddress">&#26410;&#36830;&#25509;</strong>
+          </div>
+          <div class="account-chip">
+            <span>&#32593;&#32476;</span>
+            <strong id="networkName">&#26410;&#30693;</strong>
+          </div>
+          <button id="switchNetwork" class="network-button">&#20999;&#25442; BSC</button>
+          <button id="connectWallet" class="connect-button">&#36830;&#25509;&#38065;&#21253;</button>
+        </div>
+      </header>
+
+      <section class="hero-grid">
+        <article class="headline-card">
+          <div class="hero-copy">
+            <div>
+              <p class="eyebrow">Launch Market</p>
+              <ul class="mint-rules">
+                <li>&#20195;&#24065;&#31186;&#21040;&#36134;</li>
+                <li>&#19968;&#20010;&#38065;&#21253;&#21482;&#33021; Mint &#19968;&#27425;</li>
+                <li>&#19981;&#35201;&#30452;&#25509;&#24448;&#21512;&#32422;&#36716;&#36134; BNB&#65292;&#19981;&#20250;&#21040;&#36134;&#20195;&#24065;</li>
+              </ul>
+            </div>
+            <div class="hero-metrics">
+              <span>&#20844;&#24179; Mint</span>
+              <span>&#31186;&#21040;&#36134;</span>
+              <span>&#38065;&#21253;&#38480;&#27425;</span>
+            </div>
+          </div>
+          <div class="avatar-stage" aria-hidden="true">
+            <div class="avatar-ring">
+              <img src="./mint2-avatar.jpg" alt="" />
+            </div>
+          </div>
+          <div class="contract-card">
+            <label>
+              <span>&#21512;&#32422;&#22320;&#22336;</span>
+              <input id="contractAddress" placeholder="Token contract address" />
+            </label>
+            <button id="loadContract" class="ghost-button">&#35835;&#21462;&#21512;&#32422;</button>
+          </div>
+        </article>
+      </section>
+
+      <section class="dashboard">
+        <article class="trade-card mint-card">
+          <div class="card-head">
+            <div>
+              <p class="eyebrow">Mint</p>
+              <strong id="tokenTitle" class="token-name">Mint Portal</strong>
+              <h2>&#21442;&#19982; Mint</h2>
+            </div>
+          </div>
+          <div id="mintStats" class="stats"></div>
+          <button id="mintNow" class="action-button">&#31435;&#21363; Mint</button>
+        </article>
+
+        <article class="trade-card reward-card">
+          <div class="card-head">
+            <div>
+              <p class="eyebrow">Rewards</p>
+              <h2>&#39046;&#21462;&#20998;&#32418;</h2>
+            </div>
+          </div>
+          <div id="rewardStats" class="stats"></div>
+          <button id="claimDividends" class="ghost-button wide">&#39046;&#21462;&#20998;&#32418;</button>
+        </article>
+      </section>
+
+      <pre id="log" class="sr-log" aria-live="polite"></pre>
+      <span id="mintModeBadge" class="sr-log">&#26410;&#35835;&#21462;</span>
+      <span id="rewardUnitBadge" class="sr-log">-</span>
+    </main>
+  </body>
+</html>

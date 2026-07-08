@@ -1,0 +1,210 @@
+:root {
+  color-scheme: dark;
+  --bg: #080808;
+  --panel: #111;
+  --panel-2: #1a1a1a;
+  --line: rgba(212,160,23,0.2);
+  --text: #EDE5D0;
+  --muted: #7A7060;
+  --gold: #D4A017;
+  --gold-light: #F5C842;
+  --gold-dim: rgba(212,160,23,0.12);
+  --danger: #ff6b6b;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+}
+
+h1, h2, p { margin: 0; }
+h1 { margin-top: 6px; font-size: clamp(28px, 5vw, 44px); line-height: 1.05; }
+h2 { font-size: 22px; }
+
+.mint-shell {
+  width: min(1120px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 28px 0;
+  display: grid;
+  gap: 16px;
+}
+
+.topbar,
+.wallet-strip,
+.contract-loader,
+.action-panel {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.topbar {
+  min-height: 118px;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.eyebrow {
+  color: var(--gold);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.wallet-strip {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  background: var(--line);
+}
+
+.wallet-strip > div {
+  min-height: 76px;
+  padding: 16px;
+  background: var(--panel);
+  display: grid;
+  gap: 7px;
+  overflow-wrap: anywhere;
+}
+
+span, label {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+strong { font-size: 15px; }
+
+.contract-loader {
+  padding: 18px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+label {
+  display: grid;
+  gap: 8px;
+}
+
+input {
+  width: 100%;
+  min-height: 44px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: #0a0a0a;
+  color: var(--text);
+  padding: 0 12px;
+  outline: none;
+}
+
+input:focus { border-color: var(--gold); }
+
+button {
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+  color: var(--text);
+  font-weight: 800;
+  cursor: pointer;
+  padding: 0 16px;
+}
+
+button:hover { border-color: var(--gold); }
+button:disabled { opacity: .55; cursor: wait; }
+.primary { background: var(--gold); color: #000; border-color: var(--gold); }
+.secondary { background: transparent; }
+.wide { width: 100%; }
+
+.action-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.action-panel {
+  padding: 20px;
+  display: grid;
+  gap: 18px;
+}
+
+.panel-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.badge {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0 10px;
+  background: #0a0a0a;
+  color: var(--gold-light);
+  font-weight: 800;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.stat {
+  min-height: 76px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 13px;
+  background: #0d0d0d;
+  overflow-wrap: anywhere;
+}
+
+.stat span {
+  display: block;
+  margin-bottom: 7px;
+}
+
+.stat strong {
+  font-size: 16px;
+}
+
+#log {
+  min-height: 92px;
+  max-height: 220px;
+  overflow: auto;
+  white-space: pre-wrap;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #060606;
+  color: #d7fbe9;
+  padding: 14px;
+}
+
+@media (max-width: 820px) {
+  .mint-shell { width: min(100% - 20px, 1120px); padding: 12px 0; }
+  .topbar,
+  .contract-loader,
+  .action-grid,
+  .wallet-strip,
+  .stats {
+    grid-template-columns: 1fr;
+  }
+  .topbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

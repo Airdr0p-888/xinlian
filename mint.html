@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GOLDLAUNCH Mint</title>
+    <link rel="stylesheet" href="./mint.css" />
+    <script type="module" src="./mint.js?v=20260622-user-mint"></script>
+  </head>
+  <body>
+    <main class="mint-shell">
+      <section class="topbar">
+        <div>
+          <a href="../index.html" style="display:inline-block;margin-bottom:6px;color:var(--gold,#D4A017);font-size:13px;text-decoration:none;font-weight:600;">&larr; 返回首页</a>
+          <p class="eyebrow">GOLDLAUNCH Fair Mint</p>
+          <h1 id="tokenTitle">Mint</h1>
+        </div>
+        <button id="connectWallet" class="primary">连接钱包</button>
+      </section>
+
+      <section class="wallet-strip">
+        <div>
+          <span>当前钱包</span>
+          <strong id="walletAddress">未连接</strong>
+        </div>
+        <div>
+          <span>网络</span>
+          <strong id="networkName">未知</strong>
+        </div>
+      </section>
+
+      <section class="contract-loader">
+        <label>
+          合约地址
+          <input id="contractAddress" placeholder="输入 Token 合约地址，或用 ?contract= 地址打开" />
+        </label>
+        <button id="loadContract" class="secondary">读取合约</button>
+      </section>
+
+      <section class="action-grid">
+        <article class="action-panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Mint</p>
+              <h2>参与 Mint</h2>
+            </div>
+            <span id="mintModeBadge" class="badge">未读取</span>
+          </div>
+          <div id="mintStats" class="stats"></div>
+          <button id="mintNow" class="primary wide">立即 Mint</button>
+        </article>
+
+        <article class="action-panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Rewards</p>
+              <h2>领取分红</h2>
+            </div>
+            <span id="rewardUnitBadge" class="badge">-</span>
+          </div>
+          <div id="rewardStats" class="stats"></div>
+          <button id="claimDividends" class="secondary wide">领取分红</button>
+        </article>
+      </section>
+
+      <pre id="log" aria-live="polite"></pre>
+    </main>
+  </body>
+</html>
