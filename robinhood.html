@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>GOLDLAUNCH · Robinhood Chain V3</title>
+  <link rel="stylesheet" href="./styles.css?v=20260708-v3" />
+  <script type="module" src="./robinhood-v3-app.js?v=20260708-v3"></script>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div><p class="eyebrow">ROBINHOOD CHAIN · V3</p><h1>独立发行与 Mint 控制台</h1></div>
+    <button id="connectWallet" class="primary">连接钱包</button>
+    <div class="wallet-card"><span>钱包</span><strong id="walletAddress">未连接</strong><span>网络</span><strong id="networkName">Robinhood Chain · 4663</strong><a href="https://robinhoodchain.blockscout.com/" target="_blank" rel="noopener" style="color:#D4A017">打开 Blockscout</a></div>
+    <p class="form-hint">本版本不依赖 V2 Router，不自动创建池或添加流动性。Mint 只收 ETH 并向用户发币，V3 池由项目方手动创建后登记。</p>
+    <nav class="tabs" aria-label="功能切换"><button class="tab active" data-tab="deploy">部署</button><button class="tab" data-tab="mint">Mint</button><button class="tab" data-tab="admin">管理</button></nav>
+  </aside>
+  <main>
+    <section id="deploy" class="panel active">
+      <div class="section-head"><div><p class="eyebrow">Deploy</p><h2>部署 V3 专用代币</h2></div><button id="compileContract" class="secondary">编译合约</button></div>
+      <form id="deployForm" class="deploy-form">
+        <fieldset><legend>代币</legend><div class="grid">
+          <label>名称<input name="name" value="Robinhood Fair Mint" required /></label><label>符号<input name="symbol" value="RFM" required /></label><label>总供应量<input name="totalSupply" type="number" value="100000000" min="1" step="1" required /></label><label>Owner<input name="owner" placeholder="默认当前钱包" /></label>
+        </div></fieldset>
+        <fieldset><legend>ETH Mint</legend><div class="grid">
+          <label>Mint 价格（ETH）<input name="mintPrice" value="0.01" type="number" min="0" step="0.000000000000000001" required /></label><label>每次到账代币<input name="tokenPerMint" value="700000" type="number" min="1" step="1" required /></label><label>最大 Mint 总次数<input name="maxMintCount" value="100" type="number" min="1" step="1" required /></label><label>每钱包最大次数<input name="maxMintPerWallet" value="1" type="number" min="1" step="1" required /></label><label>Mint 白名单<select name="mintWhitelistEnabled"><option value="false">关闭</option><option value="true">开启</option></select></label>
+        </div><div id="mintPlan" class="mini-stats"></div></fieldset>
+        <fieldset><legend>开盘与 V3 买卖规则</legend><div class="grid">
+          <label>开盘方式<select name="launchMode"><option value="0">Owner 手动开盘</option><option value="1">按时间开盘</option></select></label><label>开盘时间<input name="launchTime" type="datetime-local" /></label><label>买入税 %<input name="buyTax" type="number" value="0" min="0" max="20" step="0.01" /></label><label>卖出税 %<input name="sellTax" type="number" value="0" min="0" max="20" step="0.01" /></label><label>单笔最大买入代币（0=关闭）<input name="maxBuyAmount" type="number" value="0" min="0" step="1" /></label><label>单钱包最大持仓（0=关闭）<input name="maxWalletAmount" type="number" value="0" min="0" step="1" /></label><label>开盘前买入白名单<select name="preLaunchWhitelistEnabled"><option value="true">开启</option><option value="false">关闭</option></select></label>
+        </div><p class="form-hint">普通钱包转账税固定为 0。买卖税只对后台登记的 V3 Pool 生效。</p></fieldset>
+        <button class="primary wide" type="submit">部署合约</button>
+      </form>
+      <a id="deploymentLink" target="_blank" rel="noopener"></a>
+    </section>
+
+    <section id="mint" class="panel">
+      <div class="section-head"><div><p class="eyebrow">Mint</p><h2>用户 Mint 与持币分红</h2></div></div>
+      <div class="row"><input id="mintContractAddress" placeholder="合约地址" /><button id="loadMint" class="secondary">加载</button></div>
+      <div id="mintStats" class="stats"></div>
+      <div class="row"><button id="mintNow" class="primary">立即 Mint</button><button id="claimDividend">领取 ETH 分红</button></div>
+    </section>
+
+    <section id="admin" class="panel">
+      <div class="section-head"><div><p class="eyebrow">Admin</p><h2>Owner 管理</h2></div><button id="refreshAdmin" class="secondary">刷新</button></div>
+      <div class="row"><input id="adminContractAddress" placeholder="合约地址" /><button id="loadAdmin" class="secondary">加载</button></div><div id="adminStats" class="stats"></div>
+      <div class="admin-groups">
+        <article><h3>Mint</h3><div class="row"><input id="newMintPrice" placeholder="价格 ETH" /><input id="newTokenPerMint" placeholder="每次代币" /><input id="newMaxMintCount" placeholder="最大总次数" /><input id="newMaxMintPerWallet" placeholder="每钱包次数" /><button data-action="setMintConfig">保存</button></div><div class="row"><select id="mintEnabled"><option value="true">开启</option><option value="false">关闭</option></select><button data-action="setMintEnabled">设置 Mint</button><select id="mintWhitelistEnabled"><option value="true">启用 Mint 白名单</option><option value="false">关闭 Mint 白名单</option></select><button data-action="setMintWhitelistEnabled">设置白名单开关</button></div></article>
+        <article><h3>名单</h3><div class="row"><input id="listAddress" placeholder="钱包地址" /><select id="listValue"><option value="true">加入</option><option value="false">移除</option></select></div><div class="row"><button data-action="setMintWhitelist">Mint 白名单</button><button data-action="setBlacklist">黑名单</button><button data-action="setTransferWhitelist">转账白名单/免税</button><button data-action="setPreLaunchWhitelist">开盘前白名单</button><button data-action="setDividendExcluded">分红排除</button></div></article>
+        <article><h3>V3 Pool 与买卖税</h3><div class="row"><input id="poolAddress" placeholder="V3 Pool 地址" /><select id="poolValue"><option value="true">登记</option><option value="false">移除</option></select><button data-action="setV3Pool">保存 Pool</button></div><div class="row"><input id="buyTax" placeholder="买入税 %" /><input id="sellTax" placeholder="卖出税 %" /><button data-action="setTaxes">保存税率</button></div><div class="row"><input id="maxBuyAmount" placeholder="单笔最大买入" /><input id="maxWalletAmount" placeholder="最大持仓" /><button data-action="setLimits">保存限购</button></div></article>
+        <article><h3>开盘与暂停</h3><div class="row"><button data-action="openTrading">立即开盘</button><button data-action="pause">暂停</button><button data-action="unpause">恢复</button><select id="preLaunchWhitelistEnabled"><option value="true">启用开盘前白名单</option><option value="false">关闭开盘前白名单</option></select><button data-action="setPreLaunchWhitelistEnabled">设置开盘白名单</button></div></article>
+        <article><h3>ETH 持币分红</h3><div class="row"><input id="dividendAmount" placeholder="充值 ETH 数量" /><button data-action="fundDividends">充值并分配</button></div></article>
+        <article><h3>提取</h3><div class="row"><input id="withdrawETHAmount" placeholder="ETH 数量；空=全部可提取" /><button data-action="withdrawETH">提取 ETH</button></div><div class="row"><input id="withdrawTokenAddress" placeholder="代币地址；留空=本代币" /><input id="withdrawTokenAmount" placeholder="数量；空=全部" /><button data-action="withdrawToken">提取代币</button></div></article>
+      </div>
+    </section>
+    <pre id="log" aria-live="polite"></pre>
+  </main>
+</div>
+</body>
+</html>
