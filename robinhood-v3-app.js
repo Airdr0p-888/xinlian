@@ -32,6 +32,7 @@ contract RobinhoodV3FairMint is ERC20, Ownable, Pausable, ReentrancyGuard {
     mapping(address => bool) public transferWhitelist;
     uint256 public buyTaxBP;
     uint256 public sellTaxBP;
+    address public taxWallet;
     uint256 public maxBuyAmount;
     uint256 public maxWalletAmount;
 
@@ -49,22 +50,24 @@ contract RobinhoodV3FairMint is ERC20, Ownable, Pausable, ReentrancyGuard {
     event DividendClaimed(address indexed user, uint256 amount);
 
     constructor(
-        string memory name_, string memory symbol_, uint256 supply_, address owner_,
+        string memory name_, string memory symbol_, uint256 supply_, address owner_, address taxWallet_,
         uint256 mintPrice_, uint256 tokenPerMint_, uint256 maxMintCount_, uint256 maxMintPerWallet_,
         bool mintWhitelistEnabled_, uint256 launchTime_, bool preLaunchWhitelistEnabled_,
         uint256 buyTaxBP_, uint256 sellTaxBP_, uint256 maxBuyAmount_, uint256 maxWalletAmount_
     ) ERC20(name_, symbol_) Ownable(owner_) {
-        require(supply_ > 0 && tokenPerMint_ > 0, "zero config");
+        require(supply_ > 0 && tokenPerMint_ > 0, "zero config"); require(taxWallet_ != address(0), "tax wallet zero");
         require(maxMintCount_ > 0 && maxMintPerWallet_ > 0, "bad mint limit");
         require(tokenPerMint_ * maxMintCount_ <= supply_, "mint plan exceeds supply");
         require(buyTaxBP_ <= 2000 && sellTaxBP_ <= 2000, "tax > 20%");
         mintPrice = mintPrice_; tokenPerMint = tokenPerMint_; maxMintCount = maxMintCount_;
         maxMintPerWallet = maxMintPerWallet_; mintWhitelistEnabled = mintWhitelistEnabled_;
         launchTime = launchTime_; preLaunchWhitelistEnabled = preLaunchWhitelistEnabled_;
-        buyTaxBP = buyTaxBP_; sellTaxBP = sellTaxBP_; maxBuyAmount = maxBuyAmount_; maxWalletAmount = maxWalletAmount_;
+        buyTaxBP = buyTaxBP_; sellTaxBP = sellTaxBP_; taxWallet = taxWallet_; maxBuyAmount = maxBuyAmount_; maxWalletAmount = maxWalletAmount_;
         transferWhitelist[owner_] = true; transferWhitelist[address(this)] = true;
+        transferWhitelist[taxWallet_] = true;
         preLaunchWhitelist[owner_] = true; preLaunchWhitelist[address(this)] = true;
         dividendExcluded[address(this)] = true;
+        dividendExcluded[taxWallet_] = true;
         _mint(address(this), supply_);
     }
 
@@ -101,7 +104,7 @@ contract RobinhoodV3FairMint is ERC20, Ownable, Pausable, ReentrancyGuard {
         if (buy && maxBuyAmount > 0) require(received <= maxBuyAmount, "max buy");
         if (buy && maxWalletAmount > 0 && !transferWhitelist[to]) require(balanceOf(to) + received <= maxWalletAmount, "max wallet");
         _move(from, to, received);
-        if (tax > 0) _move(from, address(this), tax);
+        if (tax > 0) _move(from, taxWallet, tax);
     }
 
     function _move(address from, address to, uint256 amount) private {
@@ -157,6 +160,13 @@ contract RobinhoodV3FairMint is ERC20, Ownable, Pausable, ReentrancyGuard {
         v3Pools[pool] = value; _setDividendExcluded(pool, value); emit V3PoolSet(pool, value);
     }
     function setTaxes(uint256 buyBP, uint256 sellBP) external onlyOwner { require(buyBP <= 2000 && sellBP <= 2000, "tax > 20%"); buyTaxBP = buyBP; sellTaxBP = sellBP; }
+    function setTaxWallet(address value) external onlyOwner {
+        require(value != address(0) && value != address(this), "invalid tax wallet");
+        address old = taxWallet;
+        if (old != owner() && old != address(this)) transferWhitelist[old] = false;
+        _setDividendExcluded(old, false);
+        taxWallet = value; transferWhitelist[value] = true; _setDividendExcluded(value, true);
+    }
     function setLimits(uint256 buyAmount, uint256 walletAmount) external onlyOwner { maxBuyAmount = buyAmount; maxWalletAmount = walletAmount; }
     function openTrading() external onlyOwner { tradingOpen = true; if (launchTime == 0) launchTime = block.timestamp; }
     function setLaunchTime(uint256 value) external onlyOwner { require(!tradingOpen, "already open"); launchTime = value; }
@@ -182,8 +192,8 @@ contract RobinhoodV3FairMint is ERC20, Ownable, Pausable, ReentrancyGuard {
 
 const ABI = [
   "function owner() view returns(address)","function name() view returns(string)","function symbol() view returns(string)","function balanceOf(address) view returns(uint256)",
-  "function mintPrice() view returns(uint256)","function tokenPerMint() view returns(uint256)","function maxMintCount() view returns(uint256)","function maxMintPerWallet() view returns(uint256)","function mintedCount() view returns(uint256)","function walletMintCount(address) view returns(uint256)","function mintEnabled() view returns(bool)","function tradingOpen() view returns(bool)","function launchTime() view returns(uint256)","function buyTaxBP() view returns(uint256)","function sellTaxBP() view returns(uint256)","function maxBuyAmount() view returns(uint256)","function maxWalletAmount() view returns(uint256)","function dividendReserve() view returns(uint256)","function withdrawableDividendOf(address) view returns(uint256)",
-  "function mint() payable","function claimDividends()","function setMintConfig(uint256,uint256,uint256,uint256)","function setMintEnabled(bool)","function setMintWhitelistEnabled(bool)","function setMintWhitelist(address,bool)","function setBlacklist(address,bool)","function setTransferWhitelist(address,bool)","function setPreLaunchWhitelist(address,bool)","function setPreLaunchWhitelistEnabled(bool)","function setV3Pool(address,bool)","function setTaxes(uint256,uint256)","function setLimits(uint256,uint256)","function openTrading()","function pause()","function unpause()","function fundDividends() payable","function setDividendExcluded(address,bool)","function withdrawETH(uint256)","function withdrawToken(address,uint256)"
+  "function mintPrice() view returns(uint256)","function tokenPerMint() view returns(uint256)","function maxMintCount() view returns(uint256)","function maxMintPerWallet() view returns(uint256)","function mintedCount() view returns(uint256)","function walletMintCount(address) view returns(uint256)","function mintEnabled() view returns(bool)","function tradingOpen() view returns(bool)","function launchTime() view returns(uint256)","function buyTaxBP() view returns(uint256)","function sellTaxBP() view returns(uint256)","function taxWallet() view returns(address)","function maxBuyAmount() view returns(uint256)","function maxWalletAmount() view returns(uint256)","function dividendReserve() view returns(uint256)","function withdrawableDividendOf(address) view returns(uint256)",
+  "function mint() payable","function claimDividends()","function setMintConfig(uint256,uint256,uint256,uint256)","function setMintEnabled(bool)","function setMintWhitelistEnabled(bool)","function setMintWhitelist(address,bool)","function setBlacklist(address,bool)","function setTransferWhitelist(address,bool)","function setPreLaunchWhitelist(address,bool)","function setPreLaunchWhitelistEnabled(bool)","function setV3Pool(address,bool)","function setTaxes(uint256,uint256)","function setTaxWallet(address)","function setLimits(uint256,uint256)","function openTrading()","function pause()","function unpause()","function fundDividends() payable","function setDividendExcluded(address,bool)","function withdrawETH(uint256)","function withdrawToken(address,uint256)"
 ];
 
 const CHAIN = { id: 4663, hex: "0x1237", name: "Robinhood Chain", rpc: "https://rpc.mainnet.chain.robinhood.com/", explorer: "https://robinhoodchain.blockscout.com/" };
@@ -213,6 +223,7 @@ async function connect() {
   state.signer = await state.provider.getSigner(); state.account = await state.signer.getAddress();
   $("walletAddress").textContent = state.account; $("networkName").textContent = `${CHAIN.name} · ${network.chainId}`;
   const owner = document.querySelector('[name="owner"]'); if (!owner.value) owner.value = state.account;
+  const taxWallet = document.querySelector('[name="taxWallet"]'); if (!taxWallet.value) taxWallet.value = state.account;
 }
 async function ensure() { if (!state.signer) await connect(); const n=await state.provider.getNetwork(); if(Number(n.chainId)!==CHAIN.id) throw new Error("请切换到 Robinhood Chain 主网。"); }
 
@@ -239,15 +250,15 @@ async function compile() {
   state.compiled={abi:artifact.abi,bytecode:"0x"+artifact.evm.bytecode.object}; log(`编译完成：ABI ${artifact.abi.length} 项；创建代码 ${creationBytes} bytes；运行时代码 ${runtimeBytes} bytes`);
 }
 
-function args(form) { const f=new FormData(form), launch=f.get("launchMode")==="1"&&f.get("launchTime")?Math.floor(new Date(f.get("launchTime")).getTime()/1000):0; return [f.get("name"),f.get("symbol"),token(f.get("totalSupply")),f.get("owner")||state.account,token(f.get("mintPrice")),token(f.get("tokenPerMint")),BigInt(f.get("maxMintCount")),BigInt(f.get("maxMintPerWallet")),bool(f.get("mintWhitelistEnabled")),BigInt(launch),bool(f.get("preLaunchWhitelistEnabled")),bp(f.get("buyTax")),bp(f.get("sellTax")),token(f.get("maxBuyAmount")),token(f.get("maxWalletAmount"))]; }
-async function deploy(form) { await ensure(); if(!state.compiled) await compile(); const a=args(form); if(a[5]*a[6]>a[2]) throw new Error("Mint 计划发放量超过总供应量。"); const factory=new ethers.ContractFactory(state.compiled.abi,state.compiled.bytecode,state.signer); log("请在钱包确认部署交易…"); const c=await factory.deploy(...a); const tx=c.deploymentTransaction(); log(`部署交易：${link("tx",tx.hash)}`); await c.waitForDeployment(); const address=await c.getAddress(); log(`部署完成：${address}`); $("deploymentLink").href=link("address",address); $("deploymentLink").textContent=`在 Blockscout 查看 ${address}`; $("mintContractAddress").value=address; $("adminContractAddress").value=address; state.mint=new ethers.Contract(address,ABI,state.signer); state.admin=state.mint; }
+function args(form) { const f=new FormData(form), launch=f.get("launchMode")==="1"&&f.get("launchTime")?Math.floor(new Date(f.get("launchTime")).getTime()/1000):0, owner=f.get("owner")||state.account; return [f.get("name"),f.get("symbol"),token(f.get("totalSupply")),owner,f.get("taxWallet")||owner,token(f.get("mintPrice")),token(f.get("tokenPerMint")),BigInt(f.get("maxMintCount")),BigInt(f.get("maxMintPerWallet")),bool(f.get("mintWhitelistEnabled")),BigInt(launch),bool(f.get("preLaunchWhitelistEnabled")),bp(f.get("buyTax")),bp(f.get("sellTax")),token(f.get("maxBuyAmount")),token(f.get("maxWalletAmount"))]; }
+async function deploy(form) { await ensure(); if(!state.compiled) await compile(); const a=args(form); if(a[6]*a[7]>a[2]) throw new Error("Mint 计划发放量超过总供应量。"); const factory=new ethers.ContractFactory(state.compiled.abi,state.compiled.bytecode,state.signer); log("请在钱包确认部署交易…"); const c=await factory.deploy(...a); const tx=c.deploymentTransaction(); log(`部署交易：${link("tx",tx.hash)}`); await c.waitForDeployment(); const address=await c.getAddress(); log(`部署完成：${address}`); $("deploymentLink").href=link("address",address); $("deploymentLink").textContent=`在 Blockscout 查看 ${address}`; $("mintContractAddress").value=address; $("adminContractAddress").value=address; state.mint=new ethers.Contract(address,ABI,state.signer); state.admin=state.mint; }
 async function at(address) { await ensure(); if(!ethers.isAddress(address)||address===ZERO) throw new Error("合约地址不正确。"); if(await state.provider.getCode(address)==="0x") throw new Error("该地址没有合约代码。"); return new ethers.Contract(address,ABI,state.signer); }
 async function done(tx,label) { log(`${label} 已提交：${link("tx",tx.hash)}`); await tx.wait(); log(`${label} 已确认`); }
 function stats(id,rows){$(id).innerHTML=rows.map(([k,v])=>`<article><span>${k}</span><strong>${v}</strong></article>`).join("");}
 async function refreshMint(){const c=state.mint;if(!c)return;const [name,symbol,price,per,count,max,wm,wmax,en,pending]=await Promise.all([c.name(),c.symbol(),c.mintPrice(),c.tokenPerMint(),c.mintedCount(),c.maxMintCount(),c.walletMintCount(state.account),c.maxMintPerWallet(),c.mintEnabled(),c.withdrawableDividendOf(state.account)]);stats("mintStats",[["代币",`${name} (${symbol})`],["价格",`${ethers.formatEther(price)} ETH`],["每次到账",ethers.formatUnits(per,18)],["总进度",`${count}/${max}`],["钱包次数",`${wm}/${wmax}`],["Mint",en?"开启":"关闭"],["可领分红",`${ethers.formatEther(pending)} ETH`]]);}
-async function refreshAdmin(){const c=state.admin;if(!c)return;const [owner,count,max,open,time,buy,sell,reserve,maxBuy,maxWallet]=await Promise.all([c.owner(),c.mintedCount(),c.maxMintCount(),c.tradingOpen(),c.launchTime(),c.buyTaxBP(),c.sellTaxBP(),c.dividendReserve(),c.maxBuyAmount(),c.maxWalletAmount()]);stats("adminStats",[["Owner",owner],["Mint",`${count}/${max}`],["交易",open?"已开启":`未开启 / ${Number(time)?new Date(Number(time)*1000).toLocaleString():"手动"}`],["买/卖税",`${Number(buy)/100}% / ${Number(sell)/100}%`],["单笔/持仓上限",`${ethers.formatUnits(maxBuy,18)} / ${ethers.formatUnits(maxWallet,18)}`],["分红储备",`${ethers.formatEther(reserve)} ETH`]]);}
+async function refreshAdmin(){const c=state.admin;if(!c)return;const [owner,taxWallet,count,max,open,time,buy,sell,reserve,maxBuy,maxWallet]=await Promise.all([c.owner(),c.taxWallet(),c.mintedCount(),c.maxMintCount(),c.tradingOpen(),c.launchTime(),c.buyTaxBP(),c.sellTaxBP(),c.dividendReserve(),c.maxBuyAmount(),c.maxWalletAmount()]);stats("adminStats",[["Owner",owner],["税费接收钱包",taxWallet],["Mint",`${count}/${max}`],["交易",open?"已开启":`未开启 / ${Number(time)?new Date(Number(time)*1000).toLocaleString():"手动"}`],["买/卖税",`${Number(buy)/100}% / ${Number(sell)/100}%`],["单笔/持仓上限",`${ethers.formatUnits(maxBuy,18)} / ${ethers.formatUnits(maxWallet,18)}`],["分红储备",`${ethers.formatEther(reserve)} ETH`]]);}
 async function action(name){await ensure();const c=state.admin||(state.admin=await at($("adminContractAddress").value.trim()));const address=await c.getAddress(), value=bool($("listValue")?.value);const calls={
-  setMintConfig:()=>c.setMintConfig(token($("newMintPrice").value),token($("newTokenPerMint").value),BigInt($("newMaxMintCount").value),BigInt($("newMaxMintPerWallet").value)),setMintEnabled:()=>c.setMintEnabled(bool($("mintEnabled").value)),setMintWhitelistEnabled:()=>c.setMintWhitelistEnabled(bool($("mintWhitelistEnabled").value)),setMintWhitelist:()=>c.setMintWhitelist($("listAddress").value,value),setBlacklist:()=>c.setBlacklist($("listAddress").value,value),setTransferWhitelist:()=>c.setTransferWhitelist($("listAddress").value,value),setPreLaunchWhitelist:()=>c.setPreLaunchWhitelist($("listAddress").value,value),setPreLaunchWhitelistEnabled:()=>c.setPreLaunchWhitelistEnabled(bool($("preLaunchWhitelistEnabled").value)),setDividendExcluded:()=>c.setDividendExcluded($("listAddress").value,value),setV3Pool:()=>c.setV3Pool($("poolAddress").value,bool($("poolValue").value)),setTaxes:()=>c.setTaxes(bp($("buyTax").value),bp($("sellTax").value)),setLimits:()=>c.setLimits(token($("maxBuyAmount").value),token($("maxWalletAmount").value)),openTrading:()=>c.openTrading(),pause:()=>c.pause(),unpause:()=>c.unpause(),fundDividends:()=>c.fundDividends({value:token($("dividendAmount").value)}),withdrawETH:()=>c.withdrawETH($("withdrawETHAmount").value?token($("withdrawETHAmount").value):0n),withdrawToken:async()=>{const asset=$("withdrawTokenAddress").value.trim()||address;let amount=0n;if($("withdrawTokenAmount").value)amount=token($("withdrawTokenAmount").value);return c.withdrawToken(asset,amount)} };
+  setMintConfig:()=>c.setMintConfig(token($("newMintPrice").value),token($("newTokenPerMint").value),BigInt($("newMaxMintCount").value),BigInt($("newMaxMintPerWallet").value)),setMintEnabled:()=>c.setMintEnabled(bool($("mintEnabled").value)),setMintWhitelistEnabled:()=>c.setMintWhitelistEnabled(bool($("mintWhitelistEnabled").value)),setMintWhitelist:()=>c.setMintWhitelist($("listAddress").value,value),setBlacklist:()=>c.setBlacklist($("listAddress").value,value),setTransferWhitelist:()=>c.setTransferWhitelist($("listAddress").value,value),setPreLaunchWhitelist:()=>c.setPreLaunchWhitelist($("listAddress").value,value),setPreLaunchWhitelistEnabled:()=>c.setPreLaunchWhitelistEnabled(bool($("preLaunchWhitelistEnabled").value)),setDividendExcluded:()=>c.setDividendExcluded($("listAddress").value,value),setV3Pool:()=>c.setV3Pool($("poolAddress").value,bool($("poolValue").value)),setTaxes:()=>c.setTaxes(bp($("buyTax").value),bp($("sellTax").value)),setTaxWallet:()=>c.setTaxWallet($("taxWallet").value.trim()),setLimits:()=>c.setLimits(token($("maxBuyAmount").value),token($("maxWalletAmount").value)),openTrading:()=>c.openTrading(),pause:()=>c.pause(),unpause:()=>c.unpause(),fundDividends:()=>c.fundDividends({value:token($("dividendAmount").value)}),withdrawETH:()=>c.withdrawETH($("withdrawETHAmount").value?token($("withdrawETHAmount").value):0n),withdrawToken:async()=>{const asset=$("withdrawTokenAddress").value.trim()||address;let amount=0n;if($("withdrawTokenAmount").value)amount=token($("withdrawTokenAmount").value);return c.withdrawToken(asset,amount)} };
   if(!calls[name])throw new Error("未知操作");await done(await calls[name](),name);await refreshAdmin();}
 async function run(button,fn){button&&(button.disabled=true);try{await fn()}catch(e){log(`错误：${e.shortMessage||e.reason||e.message||e}`)}finally{button&&(button.disabled=false)}}
 
