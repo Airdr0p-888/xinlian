@@ -256,7 +256,7 @@ const ABI = [
 const CHAIN = { id: 4663, hex: "0x1237", name: "Robinhood Chain", rpc: "https://rpc.mainnet.chain.robinhood.com/", explorer: "https://robinhoodchain.blockscout.com/" };
 const OZ = "https://unpkg.com/@openzeppelin/contracts@5.0.2/";
 const ZERO = ethers.ZeroAddress;
-const state = { provider:null, signer:null, account:null, compiled:null, mint:null, admin:null };
+const state = { provider:null, signer:null, account:null, compiled:null, mint:null, admin:null, verifyInput:null, constructorArgs:"" };
 const $ = id => document.getElementById(id);
 const token = value => ethers.parseUnits(String(value || "0"), 18);
 const eth = token;
@@ -317,6 +317,7 @@ async function collectSources() {
 async function compile() {
   log("正在下载依赖并编译…"); const sources=await collectSources();
   const input={language:"Solidity",sources,settings:{viaIR:true,optimizer:{enabled:true,runs:200},outputSelection:{"*":{"*":["abi","evm.bytecode.object","evm.deployedBytecode.object"]}}}};
+  state.verifyInput = input; renderVerifyData();
   const workerCode=`import solc from "https://esm.sh/solc@0.8.24"; onmessage=e=>{try{postMessage({ok:true,value:solc.compile(JSON.stringify(e.data))})}catch(x){postMessage({ok:false,error:x.message})}}`;
   const worker=new Worker(URL.createObjectURL(new Blob([workerCode],{type:"text/javascript"})),{type:"module"});
   const output=await new Promise((resolve,reject)=>{worker.onmessage=e=>e.data.ok?resolve(JSON.parse(e.data.value)):reject(new Error(e.data.error));worker.onerror=reject;worker.postMessage(input);});
@@ -324,6 +325,7 @@ async function compile() {
   const errors=(output.errors||[]).filter(e=>e.severity==="error"); if(errors.length) throw new Error(errors.map(e=>e.formattedMessage).join("\n"));
   const c=output.contracts["RobinhoodV2AutoLiquidityMint.sol"].RobinhoodV2AutoLiquidityMint;
   state.compiled={abi:c.abi,bytecode:"0x"+c.evm.bytecode.object};
+  renderVerifyData();
   log(`编译完成：ABI ${c.abi.length} 项；创建代码 ${c.evm.bytecode.object.length/2} bytes；运行时代码 ${c.evm.deployedBytecode.object.length/2} bytes`);
 }
 
@@ -338,6 +340,23 @@ function args(form) {
     BigInt(form.maxMintCount.value), BigInt(form.maxMintPerWallet.value), bool(form.mintWhitelistEnabled.value),
     launchTs(form), bool(form.preLaunchWhitelistEnabled.value), bp(form.buyTax.value), bp(form.sellTax.value), token(form.maxBuyAmount.value), token(form.maxWalletAmount.value)
   ];
+}
+const CONSTRUCTOR_TYPES = ["string","string","uint256","address","address","address","uint256","uint256","uint256","uint256","uint256","uint256","bool","uint256","bool","uint256","uint256","uint256","uint256"];
+function renderVerifyData() {
+  if ($("verifyJson") && state.verifyInput) $("verifyJson").value = JSON.stringify(state.verifyInput, null, 2);
+  if ($("constructorArgs")) $("constructorArgs").value = state.constructorArgs || "";
+}
+async function generateVerifyData() {
+  if (!state.verifyInput) {
+    const sources = await collectSources();
+    state.verifyInput = {language:"Solidity",sources,settings:{viaIR:true,optimizer:{enabled:true,runs:200},outputSelection:{"*":{"*":["abi","evm.bytecode.object","evm.deployedBytecode.object"]}}}};
+  }
+  const form = $("deployForm");
+  if (form) {
+    state.constructorArgs = ethers.AbiCoder.defaultAbiCoder().encode(CONSTRUCTOR_TYPES, args(form)).slice(2);
+  }
+  renderVerifyData();
+  log("验证资料已生成。Blockscout 验证方式请选择 Standard JSON Input；构造参数复制下方 ABI-encoded 内容。");
 }
 function updatePlan() {
   const form=$("deployForm"); if(!form) return;
@@ -443,6 +462,7 @@ function syncLinkedMintDisplay() {
 async function deploy(form) {
   await ensure(); if(!state.compiled) await compile(); const a=args(form);
   if((a[7]+a[8])*a[10]>a[2]) throw new Error("Mint 用户到账 + 加池代币的总量超过总供应量。");
+  state.constructorArgs = ethers.AbiCoder.defaultAbiCoder().encode(CONSTRUCTOR_TYPES, a).slice(2); renderVerifyData();
   const factory=new ethers.ContractFactory(state.compiled.abi,state.compiled.bytecode,state.signer);
   log("请在钱包确认部署交易…"); const c=await factory.deploy(...a); const tx=c.deploymentTransaction();
   log(`部署交易：${link("tx",tx.hash)}`); await c.waitForDeployment(); const address=await c.getAddress();
@@ -501,6 +521,12 @@ document.addEventListener("DOMContentLoaded",()=>{
   document.querySelectorAll('[name="userTokenPerMint"],[name="liquidityTokenPerMint"]').forEach(input=>input.addEventListener("input",syncLinkedMintDisplay));
   $("connectWallet").addEventListener("click",e=>run(e.currentTarget,connect));
   $("compileContract").addEventListener("click",e=>run(e.currentTarget,compile));
+  $("generateVerifyData")?.addEventListener("click",e=>run(e.currentTarget,generateVerifyData));
+  document.querySelectorAll("[data-copy]").forEach(button=>button.addEventListener("click",async e=>{
+    const target=$(e.currentTarget.dataset.copy); const text=target?.value||"";
+    if(!text) return log("没有可复制的内容，请先生成验证资料。");
+    await navigator.clipboard.writeText(text); log("已复制到剪贴板。");
+  }));
   $("deployForm").addEventListener("input",updatePlan);
   $("deployForm").addEventListener("submit",e=>{e.preventDefault();run(e.submitter,()=>deploy(e.currentTarget));});
   document.querySelectorAll(".tab").forEach(button=>button.addEventListener("click",()=>{document.querySelectorAll(".tab,.panel").forEach(x=>x.classList.remove("active"));button.classList.add("active");$(button.dataset.tab).classList.add("active");}));

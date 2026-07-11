@@ -16,7 +16,7 @@
     input,select{width:100%;min-width:0;padding:10px 11px;border:1px solid #35404b;border-radius:8px;background:#090d11;color:var(--text);outline:none}input:focus,select:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(212,160,23,.12)}
     button{padding:10px 15px;border:1px solid #3b4651;border-radius:8px;background:#202832;color:var(--text);font-weight:700}button:hover{border-color:#697685}.primary{color:#151109;border-color:#e2b532;background:linear-gradient(135deg,var(--gold2),#b47f0c)}.secondary{border-color:#765f25;background:rgba(212,160,23,.1);color:var(--gold2)}button:disabled{opacity:.5;cursor:wait}.wide{width:100%}
     .row{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:11px 0}.row input,.row select{flex:1 1 150px}.row button{flex:0 0 auto}.form-hint{color:var(--muted);line-height:1.6;font-size:12px}.stats,.mini-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:14px 0}.stats article,.mini-stats article{display:grid;gap:5px;padding:13px}.stats span,.mini-stats span{color:var(--muted);font-size:11px}.stats strong,.mini-stats strong{overflow-wrap:anywhere}.admin-groups{margin-top:18px}.admin-groups article h3{margin:0 0 10px;color:var(--gold2)}
-    #deploymentLink{display:block;margin-top:14px;overflow-wrap:anywhere}#log{min-height:110px;margin-top:22px;padding:16px;border:1px solid var(--line);border-radius:12px;background:#050708;color:#b9c3cc;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.55}
+    #deploymentLink{display:block;margin-top:14px;overflow-wrap:anywhere}textarea{width:100%;min-height:150px;padding:12px;border:1px solid #35404b;border-radius:8px;background:#050708;color:#b9c3cc;white-space:pre;font-family:"Cascadia Mono",Consolas,monospace;font-size:12px;line-height:1.5}#log{min-height:110px;margin-top:22px;padding:16px;border:1px solid var(--line);border-radius:12px;background:#050708;color:#b9c3cc;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.55}
     @media(max-width:900px){.shell{grid-template-columns:1fr}.sidebar{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line);padding:20px}.tabs{grid-template-columns:repeat(3,1fr)}.tab{text-align:center}main{padding:24px 18px 60px}.grid,.stats,.mini-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
     @media(max-width:560px){.grid,.stats,.mini-stats{grid-template-columns:1fr}.section-head{align-items:flex-start;flex-direction:column}.section-head button{width:100%}.row>*{flex:1 1 100%!important}.sidebar h1{font-size:22px}}
   </style>
@@ -76,6 +76,13 @@
         <button class="primary wide" type="submit">部署合约</button>
       </form>
       <a id="deploymentLink" target="_blank" rel="noopener"></a>
+      <article style="margin-top:16px">
+        <h3>Blockscout 开源验证资料</h3>
+        <p class="form-hint">验证方式建议选 Standard JSON Input。编译后会生成 JSON；部署后会生成构造参数。编译器版本：Solidity 0.8.24，optimizer：开启，runs：200，viaIR：true。</p>
+        <div class="row"><button id="generateVerifyData" class="secondary" type="button">生成验证资料</button><button class="secondary" type="button" data-copy="verifyJson">复制 Standard JSON</button><button class="secondary" type="button" data-copy="constructorArgs">复制构造参数</button></div>
+        <label class="form-hint">Standard JSON Input<textarea id="verifyJson" readonly placeholder="点击“编译合约”或“生成验证资料”后出现"></textarea></label>
+        <label class="form-hint">Constructor Arguments ABI-encoded<textarea id="constructorArgs" readonly placeholder="部署完成后出现；未部署前为空"></textarea></label>
+      </article>
     </section>
 
     <section id="mint" class="panel">
