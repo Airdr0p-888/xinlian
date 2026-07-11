@@ -402,11 +402,17 @@ function allocationMode() {
 function applyAllocationMode() {
   const form = $("deployForm"); if (!form) return;
   const ratioMode = allocationMode() === "ratio";
-  if (form.userTokenPercentCalc) form.userTokenPercentCalc.disabled = !ratioMode;
+  if (form.userTokenPercentCalc) form.userTokenPercentCalc.readOnly = !ratioMode;
   if (form.userTokenPerMint) form.userTokenPerMint.readOnly = ratioMode;
   if (form.liquidityTokenPerMint) form.liquidityTokenPerMint.readOnly = ratioMode;
+  document.querySelectorAll('[data-mode-field="ratio"]').forEach(el => { el.hidden = !ratioMode; });
+  document.querySelectorAll('[data-mode-field="amount"]').forEach(el => { el.hidden = ratioMode; });
   if (form.userTokenPerMint) form.userTokenPerMint.title = ratioMode ? "按比例模式下自动计算；如需手填请切换为按数量填写" : "";
   if (form.liquidityTokenPerMint) form.liquidityTokenPerMint.title = ratioMode ? "按比例模式下自动计算；如需手填请切换为按数量填写" : "";
+  if (form.userTokenPercentCalc) form.userTokenPercentCalc.title = ratioMode ? "" : "按数量填写模式下由到账数量反推；如需编辑比例请切换为按比例计算";
+  if ($("mintModeHint")) $("mintModeHint").textContent = ratioMode
+    ? "当前为按比例计算：填写每次总分配代币和用户到账比例，页面会自动算出实际部署用的到账数量和加池数量。"
+    : "当前为按数量填写：直接填写用户到账代币/次和自动加池代币/次，页面会反推总分配和占比。";
   if (ratioMode) setLinkedMintFields();
   else syncLinkedMintDisplay();
 }
