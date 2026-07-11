@@ -713,6 +713,17 @@ document.addEventListener("DOMContentLoaded",()=>{
   $("deployWithCreate2")?.addEventListener("click",e=>run(e.currentTarget,deployWithCreate2));
   $("create2Factory")?.addEventListener("input",resetVanitySearch);
   $("vanitySuffix")?.addEventListener("input",resetVanitySearch);
+  document.addEventListener("click",e=>{
+    const button=e.target.closest?.("[data-download]");
+    if(!button) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    const target=$(button.dataset.download); const text=target?.value||"";
+    if(!text) return log("没有可下载的内容，请先生成验证资料。");
+    const filename=button.dataset.filename || `${button.dataset.download}.txt`;
+    const type=filename.endsWith(".json") ? "application/json;charset=utf-8" : "text/plain;charset=utf-8";
+    downloadText(filename,text,type); log(`已下载：${filename}`);
+  }, true);
   document.querySelectorAll("[data-copy]").forEach(button=>button.addEventListener("click",async e=>{
     const target=$(e.currentTarget.dataset.copy); const text=target?.value||"";
     if(!text) return log("没有可复制的内容，请先生成验证资料。");
