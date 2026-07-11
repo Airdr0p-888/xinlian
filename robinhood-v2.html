@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Robinhood Chain V2 自动加池 Mint</title>
+  <style>
+    :root{--bg:#070a0d;--panel:#11161c;--panel2:#171d24;--line:#29323c;--text:#f4f6f8;--muted:#98a3af;--gold:#d4a017;--gold2:#f1c64b;--danger:#d75b66}
+    *{box-sizing:border-box}html{color-scheme:dark}body{margin:0;min-height:100vh;background:radial-gradient(circle at 15% 0,#20271c 0,transparent 32%),linear-gradient(145deg,#050709,#0b1015 62%,#080b0e);color:var(--text);font-family:Inter,"Segoe UI","Microsoft YaHei",sans-serif;font-size:14px}
+    button,input,select{font:inherit}button{cursor:pointer}a{color:var(--gold2)}
+    .shell{display:grid;grid-template-columns:280px minmax(0,1fr);min-height:100vh}.sidebar{position:sticky;top:0;height:100vh;padding:28px 22px;border-right:1px solid var(--line);background:rgba(8,11,14,.94);display:flex;flex-direction:column;gap:18px}.sidebar h1{font-size:25px;line-height:1.22;margin:5px 0}.eyebrow{margin:0;color:var(--gold2);font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase}
+    main{width:min(1180px,100%);padding:34px 38px 80px}.wallet-card{display:grid;gap:6px;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}.wallet-card span{font-size:11px;color:var(--muted)}.wallet-card strong{font-size:12px;overflow-wrap:anywhere}.wallet-card a{font-size:12px;text-decoration:none}
+    .tabs{display:grid;gap:7px}.tab{width:100%;padding:11px 14px;text-align:left;border:1px solid transparent;border-radius:9px;background:transparent;color:var(--muted)}.tab:hover,.tab.active{color:var(--text);border-color:#52451f;background:linear-gradient(90deg,rgba(212,160,23,.18),transparent)}
+    .panel{display:none}.panel.active{display:block}.section-head{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:20px}.section-head h2{font-size:25px;margin:5px 0 0}.deploy-form,.admin-groups{display:grid;gap:16px}
+    fieldset,article{min-width:0;margin:0;padding:18px;border:1px solid var(--line);border-radius:14px;background:linear-gradient(145deg,rgba(23,29,36,.96),rgba(13,17,22,.96));box-shadow:0 16px 40px rgba(0,0,0,.15)}legend{padding:0 8px;color:var(--gold2);font-weight:750}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.grid label{display:grid;align-content:start;gap:7px;color:#d7dce1;font-size:12px}
+    input,select{width:100%;min-width:0;padding:10px 11px;border:1px solid #35404b;border-radius:8px;background:#090d11;color:var(--text);outline:none}input:focus,select:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(212,160,23,.12)}
+    button{padding:10px 15px;border:1px solid #3b4651;border-radius:8px;background:#202832;color:var(--text);font-weight:700}button:hover{border-color:#697685}.primary{color:#151109;border-color:#e2b532;background:linear-gradient(135deg,var(--gold2),#b47f0c)}.secondary{border-color:#765f25;background:rgba(212,160,23,.1);color:var(--gold2)}button:disabled{opacity:.5;cursor:wait}.wide{width:100%}
+    .row{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:11px 0}.row input,.row select{flex:1 1 150px}.row button{flex:0 0 auto}.form-hint{color:var(--muted);line-height:1.6;font-size:12px}.stats,.mini-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:14px 0}.stats article,.mini-stats article{display:grid;gap:5px;padding:13px}.stats span,.mini-stats span{color:var(--muted);font-size:11px}.stats strong,.mini-stats strong{overflow-wrap:anywhere}.admin-groups{margin-top:18px}.admin-groups article h3{margin:0 0 10px;color:var(--gold2)}
+    #deploymentLink{display:block;margin-top:14px;overflow-wrap:anywhere}#log{min-height:110px;margin-top:22px;padding:16px;border:1px solid var(--line);border-radius:12px;background:#050708;color:#b9c3cc;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.55}
+    @media(max-width:900px){.shell{grid-template-columns:1fr}.sidebar{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line);padding:20px}.tabs{grid-template-columns:repeat(3,1fr)}.tab{text-align:center}main{padding:24px 18px 60px}.grid,.stats,.mini-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:560px){.grid,.stats,.mini-stats{grid-template-columns:1fr}.section-head{align-items:flex-start;flex-direction:column}.section-head button{width:100%}.row>*{flex:1 1 100%!important}.sidebar h1{font-size:22px}}
+  </style>
+  <script type="module" src="./robinhood-v2-app.js?v=20260711-v2"></script>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div><p class="eyebrow">ROBINHOOD CHAIN · V2</p><h1>自动加池 Mint 控制台</h1></div>
+    <button id="connectWallet" class="primary">连接钱包</button>
+    <div class="wallet-card">
+      <span>钱包</span><strong id="walletAddress">未连接</strong>
+      <span>网络</span><strong id="networkName">Robinhood Chain · 4663</strong>
+      <a href="https://robinhoodchain.blockscout.com/" target="_blank" rel="noopener">打开 Blockscout</a>
+    </div>
+    <p class="form-hint">本版本使用 Robinhood Chain 上的 V2 Router：<br><strong>0x89e5...9eba</strong><br>Mint 时可自动把一部分 ETH 和代币加入 V2 底池。</p>
+    <nav class="tabs" aria-label="功能切换">
+      <button class="tab active" data-tab="deploy">部署</button>
+      <button class="tab" data-tab="mint">Mint</button>
+      <button class="tab" data-tab="admin">管理</button>
+    </nav>
+  </aside>
+  <main>
+    <section id="deploy" class="panel active">
+      <div class="section-head"><div><p class="eyebrow">Deploy</p><h2>部署 V2 自动加池代币</h2></div><button id="compileContract" class="secondary">编译合约</button></div>
+      <form id="deployForm" class="deploy-form">
+        <fieldset><legend>代币</legend><div class="grid">
+          <label>名称<input name="name" value="Robinhood V2 Fair Mint" required /></label>
+          <label>符号<input name="symbol" value="RFMV2" required /></label>
+          <label>总供应量<input name="totalSupply" type="number" value="100000000" min="1" step="1" required /></label>
+          <label>Owner<input name="owner" placeholder="默认当前钱包" /></label>
+          <label>税费接收钱包<input name="taxWallet" placeholder="默认 Owner；买卖税代币发到这里" /></label>
+          <label>LP 接收地址<input name="lpReceiver" placeholder="默认 Owner；接收 LP Token" /></label>
+        </div></fieldset>
+        <fieldset><legend>Mint 与自动加池比例</legend><div class="grid">
+          <label>Mint 价格（ETH）<input name="mintPrice" value="0.01" type="number" min="0" step="0.000000000000000001" required /></label>
+          <label>Mint 计划占总供应 %（辅助计算）<input name="mintSupplyPercentCalc" value="70" type="number" min="0.0001" max="100" step="0.0001" /></label>
+          <label>每次总分配代币（辅助计算）<input name="totalTokenPerMintCalc" value="700000" type="number" min="1" step="1" /></label>
+          <label>用户到账比例 %（辅助计算）<input name="userTokenPercentCalc" value="71.4286" type="number" min="0" max="100" step="0.0001" /></label>
+          <label>用户到账代币/次<input name="userTokenPerMint" value="500000" type="number" min="1" step="1" required /></label>
+          <label>自动加池代币/次<input name="liquidityTokenPerMint" value="200000" type="number" min="0" step="1" required /></label>
+          <label>ETH 加池比例 %<input name="liquidityEthPercent" value="50" type="number" min="0" max="100" step="0.01" required /></label>
+          <label>最大 Mint 总次数<input name="maxMintCount" value="100" type="number" min="1" step="1" required /></label>
+          <label>每钱包最大次数<input name="maxMintPerWallet" value="1" type="number" min="1" step="1" required /></label>
+          <label>Mint 白名单<select name="mintWhitelistEnabled"><option value="false">关闭</option><option value="true">开启</option></select></label>
+        </div><div id="mintPlan" class="mini-stats"></div><p class="form-hint">例：用户到账 500,000，自动加池 200,000，ETH 加池 50%，则每次 Mint 收到的 ETH 有一半进入 V2 池子，另一半留在合约可由 Owner 提取。</p></fieldset>
+        <fieldset><legend>开盘与买卖规则</legend><div class="grid">
+          <label>开盘方式<select name="launchMode"><option value="0">Owner 手动开盘</option><option value="1">按时间开盘</option></select></label>
+          <label>开盘时间<input name="launchTime" type="datetime-local" /></label>
+          <label>买入税 %<input name="buyTax" type="number" value="3" min="0" max="20" step="0.01" /></label>
+          <label>卖出税 %<input name="sellTax" type="number" value="3" min="0" max="20" step="0.01" /></label>
+          <label>单笔最大买入代币（0=关闭）<input name="maxBuyAmount" type="number" value="0" min="0" step="1" /></label>
+          <label>单钱包最大持币（0=关闭）<input name="maxWalletAmount" type="number" value="0" min="0" step="1" /></label>
+          <label>开盘前买入白名单<select name="preLaunchWhitelistEnabled"><option value="true">开启</option><option value="false">关闭</option></select></label>
+        </div><p class="form-hint">普通钱包转账税固定为 0。买卖税只对 V2 Pair 生效，税费代币直接发送到税费钱包。</p></fieldset>
+        <button class="primary wide" type="submit">部署合约</button>
+      </form>
+      <a id="deploymentLink" target="_blank" rel="noopener"></a>
+    </section>
+
+    <section id="mint" class="panel">
+      <div class="section-head"><div><p class="eyebrow">Mint</p><h2>用户 Mint 与分红</h2></div></div>
+      <div class="row"><input id="mintContractAddress" placeholder="合约地址" /><button id="loadMint" class="secondary">加载</button></div>
+      <div id="mintStats" class="stats"></div>
+      <div class="row"><button id="mintNow" class="primary">立即 Mint</button><button id="claimDividend">领取 ETH 分红</button></div>
+    </section>
+
+    <section id="admin" class="panel">
+      <div class="section-head"><div><p class="eyebrow">Admin</p><h2>Owner 管理</h2></div><button id="refreshAdmin" class="secondary">刷新</button></div>
+      <div class="row"><input id="adminContractAddress" placeholder="合约地址" /><button id="loadAdmin" class="secondary">加载</button></div><div id="adminStats" class="stats"></div>
+      <div class="admin-groups">
+        <article><h3>Mint 与加池配置</h3><div class="row"><input id="newMintPrice" placeholder="价格 ETH" /><input id="newUserTokenPerMint" placeholder="用户到账代币" /><input id="newLiquidityTokenPerMint" placeholder="加池代币" /><input id="newLiquidityEthPercent" placeholder="ETH 加池比例 %" /></div><div class="row"><input id="newMaxMintCount" placeholder="最大总次数" /><input id="newMaxMintPerWallet" placeholder="每钱包次数" /><button data-action="setMintConfig">保存</button></div><div class="row"><select id="mintEnabled"><option value="true">开启</option><option value="false">关闭</option></select><button data-action="setMintEnabled">设置 Mint</button><select id="mintWhitelistEnabled"><option value="true">启用 Mint 白名单</option><option value="false">关闭 Mint 白名单</option></select><button data-action="setMintWhitelistEnabled">设置白名单开关</button></div></article>
+        <article><h3>V2 底池</h3><div class="row"><button data-action="createPairIfNeeded">创建/识别 Pair</button><input id="pairAddress" placeholder="手动 Pair 地址" /><select id="pairValue"><option value="true">登记</option><option value="false">移除</option></select><button data-action="setPair">保存 Pair</button></div><div class="row"><input id="lpReceiver" placeholder="新的 LP 接收地址" /><button data-action="setLpReceiver">更换 LP 接收地址</button></div><p class="form-hint">自动加池拿到的 LP Token 会发送到 LP 接收地址。若你想锁池，可以填锁仓合约或黑洞地址。</p></article>
+        <article><h3>名单</h3><div class="row"><input id="listAddress" placeholder="钱包地址" /><select id="listValue"><option value="true">加入</option><option value="false">移除</option></select></div><div class="row"><button data-action="setMintWhitelist">Mint 白名单</button><button data-action="setBlacklist">黑名单</button><button data-action="setTransferWhitelist">转账白名单/免税</button><button data-action="setPreLaunchWhitelist">开盘前白名单</button><button data-action="setDividendExcluded">分红排除</button></div></article>
+        <article><h3>买卖税与限制</h3><div class="row"><input id="buyTax" placeholder="买入税 %" /><input id="sellTax" placeholder="卖出税 %" /><button data-action="setTaxes">保存税率</button></div><div class="row"><input id="taxWallet" placeholder="新的税费接收钱包" /><button data-action="setTaxWallet">更换接收钱包</button></div><div class="row"><input id="maxBuyAmount" placeholder="单笔最大买入" /><input id="maxWalletAmount" placeholder="最大持币" /><button data-action="setLimits">保存限购</button></div></article>
+        <article><h3>开盘与暂停</h3><div class="row"><button data-action="openTrading">立即开盘</button><button data-action="pause">暂停</button><button data-action="unpause">恢复</button><select id="preLaunchWhitelistEnabled"><option value="true">启用开盘前白名单</option><option value="false">关闭开盘前白名单</option></select><button data-action="setPreLaunchWhitelistEnabled">设置开盘白名单</button></div></article>
+        <article><h3>ETH 持币分红</h3><div class="row"><input id="dividendAmount" placeholder="充值 ETH 数量" /><button data-action="fundDividends">充值并分配</button></div></article>
+        <article><h3>提取</h3><div class="row"><input id="withdrawETHAmount" placeholder="ETH 数量；空=全部可提取" /><button data-action="withdrawETH">提取 ETH</button></div><div class="row"><input id="withdrawTokenAddress" placeholder="代币地址；留空=本代币" /><input id="withdrawTokenAmount" placeholder="数量；空=全部" /><button data-action="withdrawToken">提取代币</button></div></article>
+      </div>
+    </section>
+    <pre id="log" aria-live="polite"></pre>
+  </main>
+</div>
+</body>
+</html>
