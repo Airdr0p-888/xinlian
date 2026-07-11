@@ -53,6 +53,7 @@
         </div></fieldset>
         <fieldset><legend>Mint 与自动加池比例</legend><div class="grid">
           <label>Mint 价格（ETH）<input name="mintPrice" value="0.01" type="number" min="0" step="0.000000000000000001" required /></label>
+          <label>到账规则<select name="mintAllocationMode"><option value="ratio">按比例计算</option><option value="amount">按数量填写</option></select></label>
           <label>Mint 计划占总供应 %（辅助计算）<input name="mintSupplyPercentCalc" value="70" type="number" min="0.0001" max="100" step="0.0001" /></label>
           <label>每次总分配代币（辅助计算）<input name="totalTokenPerMintCalc" value="700000" type="number" min="1" step="1" /></label>
           <label>用户到账比例 %（辅助计算）<input name="userTokenPercentCalc" value="71.4286" type="number" min="0" max="100" step="0.0001" /></label>

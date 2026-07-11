@@ -376,6 +376,21 @@ function splitTotalToUserAndLiquidity() {
   form.userTokenPerMint.value = String(userTokens);
   form.liquidityTokenPerMint.value = String(liquidityTokens);
 }
+function allocationMode() {
+  const form = $("deployForm");
+  return form?.mintAllocationMode?.value || "ratio";
+}
+function applyAllocationMode() {
+  const form = $("deployForm"); if (!form) return;
+  const ratioMode = allocationMode() === "ratio";
+  if (form.userTokenPercentCalc) form.userTokenPercentCalc.disabled = !ratioMode;
+  if (form.userTokenPerMint) form.userTokenPerMint.readOnly = ratioMode;
+  if (form.liquidityTokenPerMint) form.liquidityTokenPerMint.readOnly = ratioMode;
+  if (form.userTokenPerMint) form.userTokenPerMint.title = ratioMode ? "按比例模式下自动计算；如需手填请切换为按数量填写" : "";
+  if (form.liquidityTokenPerMint) form.liquidityTokenPerMint.title = ratioMode ? "按比例模式下自动计算；如需手填请切换为按数量填写" : "";
+  if (ratioMode) setLinkedMintFields();
+  else syncLinkedMintDisplay();
+}
 function recalcTotalPerMintFromSupply() {
   const form = $("deployForm"); if (!form || linking) return;
   linking = true;
@@ -384,9 +399,10 @@ function recalcTotalPerMintFromSupply() {
   const planPercent = num(form.mintSupplyPercentCalc?.value);
   if (supply > 0 && count > 0 && planPercent > 0) {
     setValue(form.totalTokenPerMintCalc, supply * planPercent / 100 / count);
-    splitTotalToUserAndLiquidity();
+    if (allocationMode() === "ratio") splitTotalToUserAndLiquidity();
   }
   linking = false;
+  if (allocationMode() === "amount") syncLinkedMintDisplay();
   updatePlan();
 }
 function recalcPlanPercentFromTotalPerMint() {
@@ -396,12 +412,13 @@ function recalcPlanPercentFromTotalPerMint() {
   const count = num(form.maxMintCount.value);
   const supply = num(form.totalSupply.value);
   if (total > 0 && count > 0 && supply > 0) setValue(form.mintSupplyPercentCalc, total * count / supply * 100, 4);
-  splitTotalToUserAndLiquidity();
+  if (allocationMode() === "ratio") splitTotalToUserAndLiquidity();
   linking = false;
   updatePlan();
 }
 function setLinkedMintFields() {
   if (linking) return;
+  if (allocationMode() !== "ratio") { updatePlan(); return; }
   linking = true;
   splitTotalToUserAndLiquidity();
   linking = false;
@@ -409,6 +426,7 @@ function setLinkedMintFields() {
 }
 function syncLinkedMintDisplay() {
   const form = $("deployForm"); if (!form || linking) return;
+  if (allocationMode() !== "amount") { updatePlan(); return; }
   linking = true;
   const user = num(form.userTokenPerMint.value);
   const lp = num(form.liquidityTokenPerMint.value);
@@ -474,7 +492,9 @@ async function run(button,fn){button&&(button.disabled=true);try{await fn()}catc
 
 document.addEventListener("DOMContentLoaded",()=>{
   recalcTotalPerMintFromSupply();
+  applyAllocationMode();
   updatePlan();
+  document.querySelector('[name="mintAllocationMode"]')?.addEventListener("input",applyAllocationMode);
   document.querySelectorAll('[name="totalSupply"],[name="maxMintCount"],[name="mintSupplyPercentCalc"]').forEach(input=>input.addEventListener("input",recalcTotalPerMintFromSupply));
   document.querySelector('[name="totalTokenPerMintCalc"]')?.addEventListener("input",recalcPlanPercentFromTotalPerMint);
   document.querySelector('[name="userTokenPercentCalc"]')?.addEventListener("input",setLinkedMintFields);
