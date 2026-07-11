@@ -80,9 +80,28 @@
       </form>
       <a id="deploymentLink" target="_blank" rel="noopener"></a>
       <article style="margin-top:16px">
+        <h3>合约尾号定制部署（CREATE2）</h3>
+        <p class="form-hint">用于定制合约地址尾号，例如 000、888。CREATE2 部署时 Owner 会强制使用当前连接钱包，不会变成工厂合约。尾号越长搜索越慢，建议先用 3-5 位。</p>
+        <div class="row">
+          <input id="create2Factory" placeholder="CREATE2 工厂地址；为空可先部署工厂" />
+          <button id="deployCreate2Factory" class="secondary" type="button">部署 CREATE2 工厂</button>
+        </div>
+        <div class="row">
+          <input id="vanitySuffix" value="888" placeholder="目标尾号，例如 000 或 888" />
+          <input id="vanityMaxTries" value="200000" type="number" min="1" step="1" placeholder="最大搜索次数" />
+          <button id="searchVanitySalt" class="secondary" type="button">搜索 Salt</button>
+        </div>
+        <div class="row">
+          <input id="vanitySalt" readonly placeholder="搜索到的 Salt" />
+          <input id="vanityAddress" readonly placeholder="预测合约地址" />
+          <button id="deployWithCreate2" class="primary" type="button">用尾号地址部署</button>
+        </div>
+        <p class="form-hint">注意：搜索结果与“工厂地址 + 构造参数 + 合约字节码”绑定。修改名称、符号、总量、Mint 参数、税率、Owner 等部署参数后，需要重新搜索 Salt。</p>
+      </article>
+      <article style="margin-top:16px">
         <h3>Blockscout 开源验证资料</h3>
         <p class="form-hint">验证方式建议选 Standard JSON Input。编译后会生成 JSON；部署后会生成构造参数。编译器版本：Solidity 0.8.24，optimizer：开启，runs：200，viaIR：true。</p>
-        <div class="row"><button id="generateVerifyData" class="secondary" type="button">生成验证资料</button><button class="secondary" type="button" data-copy="verifyJson">复制 Standard JSON</button><button class="secondary" type="button" data-copy="constructorArgs">复制构造参数</button></div>
+        <div class="row"><button id="generateVerifyData" class="secondary" type="button">生成验证资料</button><button class="secondary" type="button" data-copy="verifyJson">复制 Standard JSON</button><button class="secondary" type="button" data-download="verifyJson" data-filename="robinhood-v2-standard-json-input.json">下载 Standard JSON</button><button class="secondary" type="button" data-copy="constructorArgs">复制构造参数</button><button class="secondary" type="button" data-download="constructorArgs" data-filename="robinhood-v2-constructor-args.txt">下载构造参数</button></div>
         <label class="form-hint">Standard JSON Input<textarea id="verifyJson" readonly placeholder="点击“编译合约”或“生成验证资料”后出现"></textarea></label>
         <label class="form-hint">Constructor Arguments ABI-encoded<textarea id="constructorArgs" readonly placeholder="部署完成后出现；未部署前为空"></textarea></label>
       </article>

@@ -271,16 +271,41 @@ contract RobinhoodV2AutoLiquidityMint is ERC20, Ownable, Pausable, ReentrancyGua
     }
 }`;
 
+const CREATE2_FACTORY_SOURCE = String.raw`// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+contract RobinhoodCreate2Deployer {
+    event Deployed(address indexed addr, bytes32 indexed salt);
+
+    function deploy(bytes32 salt, bytes memory code) external payable returns (address addr) {
+        require(code.length != 0, "empty code");
+        assembly {
+            addr := create2(callvalue(), add(code, 0x20), mload(code), salt)
+        }
+        require(addr != address(0), "deploy failed");
+        emit Deployed(addr, salt);
+    }
+
+    function computeAddress(bytes32 salt, bytes32 codeHash) external view returns (address) {
+        return address(uint160(uint256(keccak256(abi.encodePacked(bytes1(0xff), address(this), salt, codeHash)))));
+    }
+}`;
+
 const ABI = [
   "function owner() view returns(address)","function name() view returns(string)","function symbol() view returns(string)","function balanceOf(address) view returns(uint256)",
   "function ROUTER() view returns(address)","function FACTORY() view returns(address)","function WETH() view returns(address)","function mintPrice() view returns(uint256)","function userTokenPerMint() view returns(uint256)","function liquidityTokenPerMint() view returns(uint256)","function liquidityEthBP() view returns(uint256)","function maxMintCount() view returns(uint256)","function maxMintPerWallet() view returns(uint256)","function mintedCount() view returns(uint256)","function walletMintCount(address) view returns(uint256)","function mintEnabled() view returns(bool)","function tradingOpen() view returns(bool)","function launchTime() view returns(uint256)","function buyTaxBP() view returns(uint256)","function sellTaxBP() view returns(uint256)","function taxWallet() view returns(address)","function lpReceiver() view returns(address)","function lpReceiverMode() view returns(uint8)","function maxBuyAmount() view returns(uint256)","function maxWalletAmount() view returns(uint256)","function blockMinterBuyAfterOpen() view returns(bool)","function dividendReserve() view returns(uint256)","function withdrawableDividendOf(address) view returns(uint256)","function automatedMarketMakerPairs(address) view returns(bool)","function preLaunchWhitelist(address) view returns(bool)","function preLaunchBuyOnlyWhitelist(address) view returns(bool)",
   "function mint() payable","function claimDividends()","function createPairIfNeeded() returns(address)","function setMintConfig(uint256,uint256,uint256,uint256,uint256,uint256)","function setMintEnabled(bool)","function setMintWhitelistEnabled(bool)","function setMintWhitelist(address,bool)","function setMintWhitelistBatch(address[],bool)","function setBlacklist(address,bool)","function setTransferWhitelist(address,bool)","function setPreLaunchWhitelist(address,bool)","function setPreLaunchBuyOnlyWhitelist(address,bool)","function setPreLaunchBuyOnlyWhitelistBatch(address[],bool)","function setPreLaunchWhitelistEnabled(bool)","function setPair(address,bool)","function setTaxes(uint256,uint256)","function setTaxWallet(address)","function setLpReceiver(address)","function setLpReceiverMode(uint8)","function setLimits(uint256,uint256)","function setBlockMinterBuyAfterOpen(bool)","function openTrading()","function pause()","function unpause()","function fundDividends() payable","function setDividendExcluded(address,bool)","function withdrawETH(uint256)","function withdrawToken(address,uint256)","function renounceOwnership()"
 ];
+const CREATE2_ABI = [
+  "function deploy(bytes32 salt, bytes code) payable returns(address)",
+  "function computeAddress(bytes32 salt, bytes32 codeHash) view returns(address)",
+  "event Deployed(address indexed addr, bytes32 indexed salt)"
+];
 
 const CHAIN = { id: 4663, hex: "0x1237", name: "Robinhood Chain", rpc: "https://rpc.mainnet.chain.robinhood.com/", explorer: "https://robinhoodchain.blockscout.com/" };
 const OZ = "https://unpkg.com/@openzeppelin/contracts@5.0.2/";
 const ZERO = ethers.ZeroAddress;
-const state = { provider:null, signer:null, account:null, compiled:null, mint:null, admin:null, verifyInput:null, constructorArgs:"" };
+const state = { provider:null, signer:null, account:null, compiled:null, factoryCompiled:null, mint:null, admin:null, verifyInput:null, constructorArgs:"", vanitySalt:null, vanityAddress:null, vanityInitHash:null };
 const $ = id => document.getElementById(id);
 const token = value => ethers.parseUnits(String(value || "0"), 18);
 const eth = token;
@@ -338,24 +363,39 @@ async function collectSources() {
   for (const match of SOURCE.matchAll(/import\s+(?:[^;"']+\s+from\s+)?(?:"([^"]+)"|'([^']+)');/g)) await fetchSource(resolveImport(match[1] || match[2], "RobinhoodV2AutoLiquidityMint.sol"), sources);
   return sources;
 }
+async function runSolc(input) {
+  const workerCode=`import solc from "https://esm.sh/solc@0.8.24"; onmessage=e=>{try{postMessage({ok:true,value:solc.compile(JSON.stringify(e.data))})}catch(x){postMessage({ok:false,error:x.message})}}`;
+  const worker=new Worker(URL.createObjectURL(new Blob([workerCode],{type:"text/javascript"})),{type:"module"});
+  try {
+    const output=await new Promise((resolve,reject)=>{worker.onmessage=e=>e.data.ok?resolve(JSON.parse(e.data.value)):reject(new Error(e.data.error));worker.onerror=reject;worker.postMessage(input);});
+    const errors=(output.errors||[]).filter(e=>e.severity==="error"); if(errors.length) throw new Error(errors.map(e=>e.formattedMessage).join("\n"));
+    return output;
+  } finally {
+    worker.terminate();
+  }
+}
 async function compile() {
   log("正在下载依赖并编译…"); const sources=await collectSources();
   const input={language:"Solidity",sources,settings:{viaIR:true,optimizer:{enabled:true,runs:200},outputSelection:{"*":{"*":["abi","evm.bytecode.object","evm.deployedBytecode.object"]}}}};
   state.verifyInput = input; renderVerifyData();
-  const workerCode=`import solc from "https://esm.sh/solc@0.8.24"; onmessage=e=>{try{postMessage({ok:true,value:solc.compile(JSON.stringify(e.data))})}catch(x){postMessage({ok:false,error:x.message})}}`;
-  const worker=new Worker(URL.createObjectURL(new Blob([workerCode],{type:"text/javascript"})),{type:"module"});
-  const output=await new Promise((resolve,reject)=>{worker.onmessage=e=>e.data.ok?resolve(JSON.parse(e.data.value)):reject(new Error(e.data.error));worker.onerror=reject;worker.postMessage(input);});
-  worker.terminate();
-  const errors=(output.errors||[]).filter(e=>e.severity==="error"); if(errors.length) throw new Error(errors.map(e=>e.formattedMessage).join("\n"));
+  const output=await runSolc(input);
   const c=output.contracts["RobinhoodV2AutoLiquidityMint.sol"].RobinhoodV2AutoLiquidityMint;
   state.compiled={abi:c.abi,bytecode:"0x"+c.evm.bytecode.object};
   renderVerifyData();
   log(`编译完成：ABI ${c.abi.length} 项；创建代码 ${c.evm.bytecode.object.length/2} bytes；运行时代码 ${c.evm.deployedBytecode.object.length/2} bytes`);
 }
 
+async function compileCreate2Factory() {
+  const input={language:"Solidity",sources:{"RobinhoodCreate2Deployer.sol":{content:CREATE2_FACTORY_SOURCE}},settings:{optimizer:{enabled:true,runs:200},outputSelection:{"*":{"*":["abi","evm.bytecode.object","evm.deployedBytecode.object"]}}}};
+  const output=await runSolc(input);
+  const c=output.contracts["RobinhoodCreate2Deployer.sol"].RobinhoodCreate2Deployer;
+  state.factoryCompiled={abi:c.abi,bytecode:"0x"+c.evm.bytecode.object};
+  return state.factoryCompiled;
+}
+
 function launchTs(form) { if (form.launchMode.value !== "1" || !form.launchTime.value) return 0n; return BigInt(Math.floor(new Date(form.launchTime.value).getTime()/1000)); }
-function args(form) {
-  const owner = form.owner.value.trim() || state.account;
+function args(form, forcedOwner = null) {
+  const owner = forcedOwner || form.owner.value.trim() || state.account;
   const taxWallet = form.taxWallet.value.trim() || owner;
   const lpReceiver = form.lpReceiver.value.trim() || owner;
   return [
@@ -369,6 +409,17 @@ const CONSTRUCTOR_TYPES = ["string","string","uint256","address","address","addr
 function renderVerifyData() {
   if ($("verifyJson") && state.verifyInput) $("verifyJson").value = JSON.stringify(state.verifyInput, null, 2);
   if ($("constructorArgs")) $("constructorArgs").value = state.constructorArgs || "";
+}
+function downloadText(filename, text, type = "text/plain;charset=utf-8") {
+  const blob = new Blob([text], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 async function generateVerifyData() {
   if (!state.verifyInput) {
@@ -507,6 +558,91 @@ async function deploy(form) {
 }
 async function at(address) { await ensure(); if(!ethers.isAddress(address)||address===ZERO) throw new Error("合约地址不正确。"); if(await state.provider.getCode(address)==="0x") throw new Error("该地址没有合约代码。"); return new ethers.Contract(address,ABI,state.signer); }
 async function done(tx,label) { log(`${label} 已提交：${link("tx",tx.hash)}`); await tx.wait(); log(`${label} 已确认`); }
+function resetVanitySearch() {
+  state.vanitySalt=null; state.vanityAddress=null; state.vanityInitHash=null;
+  if ($("vanitySalt")) $("vanitySalt").value="";
+  if ($("vanityAddress")) $("vanityAddress").value="";
+}
+function vanitySuffix() {
+  const suffix=String($("vanitySuffix")?.value||"").trim().replace(/^0x/i,"").toLowerCase();
+  if (!suffix || !/^[0-9a-f]+$/.test(suffix)) throw new Error("尾号只能填写 0-9 或 a-f，例如 000、888、beef。");
+  if (suffix.length > 10) throw new Error("尾号太长会非常慢，建议最多 10 位，常用 3-5 位。");
+  return suffix;
+}
+function create2FactoryAddress() {
+  const address=String($("create2Factory")?.value||"").trim();
+  if (!ethers.isAddress(address) || address === ZERO) throw new Error("请先填写或部署 CREATE2 工厂地址。");
+  return ethers.getAddress(address);
+}
+function forceCurrentOwner(form) {
+  if (!state.account) throw new Error("请先连接钱包。");
+  if (form.owner) form.owner.value=state.account;
+  if (form.taxWallet && !form.taxWallet.value) form.taxWallet.value=state.account;
+  if (form.lpReceiver && !form.lpReceiver.value) form.lpReceiver.value=state.account;
+}
+async function buildCreate2InitCode() {
+  await ensure(); if(!state.compiled) await compile();
+  const form=$("deployForm"); forceCurrentOwner(form);
+  const a=args(form,state.account);
+  if((a[8]+a[9])*a[11]>a[2]) throw new Error("Mint 用户到账 + 加池代币的总量超过总供应量。");
+  state.constructorArgs = ethers.AbiCoder.defaultAbiCoder().encode(CONSTRUCTOR_TYPES, a).slice(2); renderVerifyData();
+  return state.compiled.bytecode + state.constructorArgs;
+}
+async function deployCreate2Factory() {
+  await ensure(); if(!state.factoryCompiled) await compileCreate2Factory();
+  const factory=new ethers.ContractFactory(state.factoryCompiled.abi,state.factoryCompiled.bytecode,state.signer);
+  log("请在钱包确认部署 CREATE2 工厂交易...");
+  const c=await factory.deploy(); const tx=c.deploymentTransaction();
+  log(`CREATE2 工厂部署交易：${link("tx",tx.hash)}`);
+  await c.waitForDeployment(); const address=await c.getAddress();
+  $("create2Factory").value=address; resetVanitySearch();
+  log(`CREATE2 工厂部署完成：${address}`);
+}
+async function searchVanitySalt() {
+  await ensure();
+  const factory=create2FactoryAddress();
+  const code=await state.provider.getCode(factory);
+  if (code === "0x") throw new Error("CREATE2 工厂地址没有合约代码，请先部署工厂。");
+  const suffix=vanitySuffix();
+  const maxTries=Math.max(1, Number($("vanityMaxTries")?.value||200000));
+  const initCode=await buildCreate2InitCode();
+  const initHash=ethers.keccak256(initCode);
+  log(`开始搜索尾号 ${suffix}，最多 ${maxTries.toLocaleString()} 次...`);
+  for (let i=0;i<maxTries;i++) {
+    const salt=ethers.id(`${state.account}:${suffix}:${i}`);
+    const address=ethers.getCreate2Address(factory,salt,initHash);
+    if (address.toLowerCase().endsWith(suffix)) {
+      state.vanitySalt=salt; state.vanityAddress=address; state.vanityInitHash=initHash;
+      $("vanitySalt").value=salt; $("vanityAddress").value=address;
+      log(`已找到 Salt：${salt}\n预测地址：${address}`);
+      return;
+    }
+    if (i>0 && i%2000===0) await new Promise(resolve=>setTimeout(resolve,0));
+  }
+  throw new Error(`没有在 ${maxTries.toLocaleString()} 次内找到目标尾号，请加大搜索次数或缩短尾号。`);
+}
+async function deployWithCreate2() {
+  await ensure();
+  const factoryAddress=create2FactoryAddress();
+  const initCode=await buildCreate2InitCode();
+  const initHash=ethers.keccak256(initCode);
+  const suffix=vanitySuffix();
+  const salt=String($("vanitySalt")?.value||state.vanitySalt||"").trim();
+  if (!ethers.isHexString(salt,32)) throw new Error("请先搜索 Salt。");
+  const predicted=ethers.getCreate2Address(factoryAddress,salt,initHash);
+  if (!predicted.toLowerCase().endsWith(suffix)) throw new Error("当前参数下预测地址不匹配目标尾号，请重新搜索 Salt。");
+  if (state.vanityInitHash && state.vanityInitHash !== initHash) throw new Error("部署参数已变化，请重新搜索 Salt。");
+  if (await state.provider.getCode(predicted) !== "0x") throw new Error("预测地址已经有合约代码，请换一个 Salt。");
+  const factory=new ethers.Contract(factoryAddress,CREATE2_ABI,state.signer);
+  log(`请在钱包确认 CREATE2 部署交易，预测地址：${predicted}`);
+  const tx=await factory.deploy(salt,initCode);
+  log(`CREATE2 部署交易：${link("tx",tx.hash)}`);
+  await tx.wait();
+  if (await state.provider.getCode(predicted) === "0x") throw new Error("交易已确认，但预测地址没有代码，请检查工厂合约。");
+  $("deploymentLink").href=link("address",predicted); $("deploymentLink").textContent=`在 Blockscout 查看 ${predicted}`;
+  $("mintContractAddress").value=predicted; $("adminContractAddress").value=predicted; state.mint=new ethers.Contract(predicted,ABI,state.signer); state.admin=state.mint;
+  log(`CREATE2 尾号部署完成：${predicted}\nOwner：${state.account}`);
+}
 function stats(id,rows){$(id).innerHTML=rows.map(([k,v])=>`<article><span>${k}</span><strong>${v}</strong></article>`).join("");}
 function parseAddresses(text) {
   const list = String(text || "").split(/[\s,;，；]+/).map(x => x.trim()).filter(Boolean);
@@ -572,12 +708,24 @@ document.addEventListener("DOMContentLoaded",()=>{
   $("connectWallet").addEventListener("click",e=>run(e.currentTarget,connect));
   $("compileContract").addEventListener("click",e=>run(e.currentTarget,compile));
   $("generateVerifyData")?.addEventListener("click",e=>run(e.currentTarget,generateVerifyData));
+  $("deployCreate2Factory")?.addEventListener("click",e=>run(e.currentTarget,deployCreate2Factory));
+  $("searchVanitySalt")?.addEventListener("click",e=>run(e.currentTarget,searchVanitySalt));
+  $("deployWithCreate2")?.addEventListener("click",e=>run(e.currentTarget,deployWithCreate2));
+  $("create2Factory")?.addEventListener("input",resetVanitySearch);
+  $("vanitySuffix")?.addEventListener("input",resetVanitySearch);
   document.querySelectorAll("[data-copy]").forEach(button=>button.addEventListener("click",async e=>{
     const target=$(e.currentTarget.dataset.copy); const text=target?.value||"";
     if(!text) return log("没有可复制的内容，请先生成验证资料。");
     await navigator.clipboard.writeText(text); log("已复制到剪贴板。");
   }));
-  $("deployForm").addEventListener("input",updatePlan);
+  document.querySelectorAll("[data-download]").forEach(button=>button.addEventListener("click",e=>{
+    const target=$(e.currentTarget.dataset.download); const text=target?.value||"";
+    if(!text) return log("没有可下载的内容，请先生成验证资料。");
+    const filename=e.currentTarget.dataset.filename || `${e.currentTarget.dataset.download}.txt`;
+    const type=filename.endsWith(".json") ? "application/json;charset=utf-8" : "text/plain;charset=utf-8";
+    downloadText(filename,text,type); log(`已下载：${filename}`);
+  }));
+  $("deployForm").addEventListener("input",()=>{updatePlan();resetVanitySearch();});
   $("deployForm").addEventListener("submit",e=>{e.preventDefault();run(e.submitter,()=>deploy(e.currentTarget));});
   document.querySelectorAll(".tab").forEach(button=>button.addEventListener("click",()=>{document.querySelectorAll(".tab,.panel").forEach(x=>x.classList.remove("active"));button.classList.add("active");$(button.dataset.tab).classList.add("active");}));
   $("loadMint").addEventListener("click",e=>run(e.currentTarget,async()=>{state.mint=await at($("mintContractAddress").value.trim());await refreshMint();}));
