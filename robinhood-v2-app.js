@@ -45,6 +45,7 @@ contract RobinhoodV2AutoLiquidityMint is ERC20, Ownable, Pausable, ReentrancyGua
     bool public mintEnabled = true;
     bool public mintWhitelistEnabled;
     address public lpReceiver;
+    uint8 public lpReceiverMode;
     mapping(address => uint256) public walletMintCount;
     mapping(address => bool) public mintWhitelist;
 
@@ -77,13 +78,14 @@ contract RobinhoodV2AutoLiquidityMint is ERC20, Ownable, Pausable, ReentrancyGua
     event DividendClaimed(address indexed user, uint256 amount);
 
     constructor(
-        string memory name_, string memory symbol_, uint256 supply_, address owner_, address taxWallet_, address lpReceiver_,
+        string memory name_, string memory symbol_, uint256 supply_, address owner_, address taxWallet_, address lpReceiver_, uint8 lpReceiverMode_,
         uint256 mintPrice_, uint256 userTokenPerMint_, uint256 liquidityTokenPerMint_, uint256 liquidityEthBP_,
         uint256 maxMintCount_, uint256 maxMintPerWallet_, bool mintWhitelistEnabled_,
         uint256 launchTime_, bool preLaunchWhitelistEnabled_, uint256 buyTaxBP_, uint256 sellTaxBP_, uint256 maxBuyAmount_, uint256 maxWalletAmount_
     ) ERC20(name_, symbol_) Ownable(owner_) {
         require(supply_ > 0 && userTokenPerMint_ > 0, "zero config");
         require(taxWallet_ != address(0) && lpReceiver_ != address(0), "zero wallet");
+        require(lpReceiverMode_ <= 1, "bad lp mode");
         require(maxMintCount_ > 0 && maxMintPerWallet_ > 0, "bad mint limit");
         require(liquidityEthBP_ <= BP_DENOMINATOR, "lp eth > 100%");
         require((userTokenPerMint_ + liquidityTokenPerMint_) * maxMintCount_ <= supply_, "mint plan exceeds supply");
@@ -93,7 +95,7 @@ contract RobinhoodV2AutoLiquidityMint is ERC20, Ownable, Pausable, ReentrancyGua
         mintPrice = mintPrice_; userTokenPerMint = userTokenPerMint_; liquidityTokenPerMint = liquidityTokenPerMint_; liquidityEthBP = liquidityEthBP_;
         maxMintCount = maxMintCount_; maxMintPerWallet = maxMintPerWallet_; mintWhitelistEnabled = mintWhitelistEnabled_;
         launchTime = launchTime_; preLaunchWhitelistEnabled = preLaunchWhitelistEnabled_;
-        buyTaxBP = buyTaxBP_; sellTaxBP = sellTaxBP_; taxWallet = taxWallet_; lpReceiver = lpReceiver_;
+        buyTaxBP = buyTaxBP_; sellTaxBP = sellTaxBP_; taxWallet = taxWallet_; lpReceiver = lpReceiver_; lpReceiverMode = lpReceiverMode_;
         maxBuyAmount = maxBuyAmount_; maxWalletAmount = maxWalletAmount_;
 
         transferWhitelist[owner_] = true; transferWhitelist[address(this)] = true; transferWhitelist[ROUTER] = true; transferWhitelist[taxWallet_] = true;
@@ -123,8 +125,9 @@ contract RobinhoodV2AutoLiquidityMint is ERC20, Ownable, Pausable, ReentrancyGua
         uint256 ethForLiquidity = msg.value * liquidityEthBP / BP_DENOMINATOR;
         if (ethForLiquidity > 0 && liquidityTokenPerMint > 0) {
             _approve(address(this), ROUTER, liquidityTokenPerMint);
+            address receiver = lpReceiverMode == 1 ? msg.sender : lpReceiver;
             (uint256 tokenUsed, uint256 ethUsed, uint256 liquidity) = IUniswapV2Router02(ROUTER).addLiquidityETH{value: ethForLiquidity}(
-                address(this), liquidityTokenPerMint, 0, 0, lpReceiver, block.timestamp + 600
+                address(this), liquidityTokenPerMint, 0, 0, receiver, block.timestamp + 600
             );
             address pair = IUniswapV2Factory(FACTORY).getPair(address(this), WETH);
             if (pair != address(0) && !automatedMarketMakerPairs[pair]) _setPair(pair, true);
@@ -236,6 +239,7 @@ contract RobinhoodV2AutoLiquidityMint is ERC20, Ownable, Pausable, ReentrancyGua
         taxWallet = value; transferWhitelist[value] = true; _setDividendExcluded(value, true);
     }
     function setLpReceiver(address value) external onlyOwner { require(value != address(0), "zero receiver"); lpReceiver = value; }
+    function setLpReceiverMode(uint8 value) external onlyOwner { require(value <= 1, "bad lp mode"); lpReceiverMode = value; }
     function setLimits(uint256 buyAmount, uint256 walletAmount) external onlyOwner { maxBuyAmount = buyAmount; maxWalletAmount = walletAmount; }
     function openTrading() external onlyOwner { tradingOpen = true; if (launchTime == 0) launchTime = block.timestamp; }
     function setLaunchTime(uint256 value) external onlyOwner { require(!tradingOpen, "already open"); launchTime = value; }
@@ -264,8 +268,8 @@ contract RobinhoodV2AutoLiquidityMint is ERC20, Ownable, Pausable, ReentrancyGua
 
 const ABI = [
   "function owner() view returns(address)","function name() view returns(string)","function symbol() view returns(string)","function balanceOf(address) view returns(uint256)",
-  "function ROUTER() view returns(address)","function FACTORY() view returns(address)","function WETH() view returns(address)","function mintPrice() view returns(uint256)","function userTokenPerMint() view returns(uint256)","function liquidityTokenPerMint() view returns(uint256)","function liquidityEthBP() view returns(uint256)","function maxMintCount() view returns(uint256)","function maxMintPerWallet() view returns(uint256)","function mintedCount() view returns(uint256)","function walletMintCount(address) view returns(uint256)","function mintEnabled() view returns(bool)","function tradingOpen() view returns(bool)","function launchTime() view returns(uint256)","function buyTaxBP() view returns(uint256)","function sellTaxBP() view returns(uint256)","function taxWallet() view returns(address)","function lpReceiver() view returns(address)","function maxBuyAmount() view returns(uint256)","function maxWalletAmount() view returns(uint256)","function dividendReserve() view returns(uint256)","function withdrawableDividendOf(address) view returns(uint256)","function automatedMarketMakerPairs(address) view returns(bool)","function preLaunchWhitelist(address) view returns(bool)","function preLaunchBuyOnlyWhitelist(address) view returns(bool)",
-  "function mint() payable","function claimDividends()","function createPairIfNeeded() returns(address)","function setMintConfig(uint256,uint256,uint256,uint256,uint256,uint256)","function setMintEnabled(bool)","function setMintWhitelistEnabled(bool)","function setMintWhitelist(address,bool)","function setMintWhitelistBatch(address[],bool)","function setBlacklist(address,bool)","function setTransferWhitelist(address,bool)","function setPreLaunchWhitelist(address,bool)","function setPreLaunchBuyOnlyWhitelist(address,bool)","function setPreLaunchBuyOnlyWhitelistBatch(address[],bool)","function setPreLaunchWhitelistEnabled(bool)","function setPair(address,bool)","function setTaxes(uint256,uint256)","function setTaxWallet(address)","function setLpReceiver(address)","function setLimits(uint256,uint256)","function openTrading()","function pause()","function unpause()","function fundDividends() payable","function setDividendExcluded(address,bool)","function withdrawETH(uint256)","function withdrawToken(address,uint256)","function renounceOwnership()"
+  "function ROUTER() view returns(address)","function FACTORY() view returns(address)","function WETH() view returns(address)","function mintPrice() view returns(uint256)","function userTokenPerMint() view returns(uint256)","function liquidityTokenPerMint() view returns(uint256)","function liquidityEthBP() view returns(uint256)","function maxMintCount() view returns(uint256)","function maxMintPerWallet() view returns(uint256)","function mintedCount() view returns(uint256)","function walletMintCount(address) view returns(uint256)","function mintEnabled() view returns(bool)","function tradingOpen() view returns(bool)","function launchTime() view returns(uint256)","function buyTaxBP() view returns(uint256)","function sellTaxBP() view returns(uint256)","function taxWallet() view returns(address)","function lpReceiver() view returns(address)","function lpReceiverMode() view returns(uint8)","function maxBuyAmount() view returns(uint256)","function maxWalletAmount() view returns(uint256)","function dividendReserve() view returns(uint256)","function withdrawableDividendOf(address) view returns(uint256)","function automatedMarketMakerPairs(address) view returns(bool)","function preLaunchWhitelist(address) view returns(bool)","function preLaunchBuyOnlyWhitelist(address) view returns(bool)",
+  "function mint() payable","function claimDividends()","function createPairIfNeeded() returns(address)","function setMintConfig(uint256,uint256,uint256,uint256,uint256,uint256)","function setMintEnabled(bool)","function setMintWhitelistEnabled(bool)","function setMintWhitelist(address,bool)","function setMintWhitelistBatch(address[],bool)","function setBlacklist(address,bool)","function setTransferWhitelist(address,bool)","function setPreLaunchWhitelist(address,bool)","function setPreLaunchBuyOnlyWhitelist(address,bool)","function setPreLaunchBuyOnlyWhitelistBatch(address[],bool)","function setPreLaunchWhitelistEnabled(bool)","function setPair(address,bool)","function setTaxes(uint256,uint256)","function setTaxWallet(address)","function setLpReceiver(address)","function setLpReceiverMode(uint8)","function setLimits(uint256,uint256)","function openTrading()","function pause()","function unpause()","function fundDividends() payable","function setDividendExcluded(address,bool)","function withdrawETH(uint256)","function withdrawToken(address,uint256)","function renounceOwnership()"
 ];
 
 const CHAIN = { id: 4663, hex: "0x1237", name: "Robinhood Chain", rpc: "https://rpc.mainnet.chain.robinhood.com/", explorer: "https://robinhoodchain.blockscout.com/" };
@@ -350,13 +354,13 @@ function args(form) {
   const taxWallet = form.taxWallet.value.trim() || owner;
   const lpReceiver = form.lpReceiver.value.trim() || owner;
   return [
-    form.name.value.trim(), form.symbol.value.trim(), token(form.totalSupply.value), owner, taxWallet, lpReceiver,
+    form.name.value.trim(), form.symbol.value.trim(), token(form.totalSupply.value), owner, taxWallet, lpReceiver, Number(form.lpReceiverMode.value || 0),
     eth(form.mintPrice.value), token(form.userTokenPerMint.value), token(form.liquidityTokenPerMint.value), bp(form.liquidityEthPercent.value),
     BigInt(form.maxMintCount.value), BigInt(form.maxMintPerWallet.value), bool(form.mintWhitelistEnabled.value),
     launchTs(form), bool(form.preLaunchWhitelistEnabled.value), bp(form.buyTax.value), bp(form.sellTax.value), token(form.maxBuyAmount.value), token(form.maxWalletAmount.value)
   ];
 }
-const CONSTRUCTOR_TYPES = ["string","string","uint256","address","address","address","uint256","uint256","uint256","uint256","uint256","uint256","bool","uint256","bool","uint256","uint256","uint256","uint256"];
+const CONSTRUCTOR_TYPES = ["string","string","uint256","address","address","address","uint8","uint256","uint256","uint256","uint256","uint256","uint256","bool","uint256","bool","uint256","uint256","uint256","uint256"];
 function renderVerifyData() {
   if ($("verifyJson") && state.verifyInput) $("verifyJson").value = JSON.stringify(state.verifyInput, null, 2);
   if ($("constructorArgs")) $("constructorArgs").value = state.constructorArgs || "";
@@ -431,6 +435,12 @@ function applyAllocationMode() {
   if (ratioMode) setLinkedMintFields();
   else syncLinkedMintDisplay();
 }
+function applyLpReceiverMode() {
+  const form = $("deployForm"); if (!form) return;
+  const fixed = String(form.lpReceiverMode?.value || "0") === "0";
+  document.querySelectorAll("[data-lp-fixed]").forEach(el => { el.hidden = !fixed; });
+  updatePlan();
+}
 function recalcTotalPerMintFromSupply() {
   const form = $("deployForm"); if (!form || linking) return;
   linking = true;
@@ -482,7 +492,7 @@ function syncLinkedMintDisplay() {
 }
 async function deploy(form) {
   await ensure(); if(!state.compiled) await compile(); const a=args(form);
-  if((a[7]+a[8])*a[10]>a[2]) throw new Error("Mint 用户到账 + 加池代币的总量超过总供应量。");
+  if((a[8]+a[9])*a[11]>a[2]) throw new Error("Mint 用户到账 + 加池代币的总量超过总供应量。");
   state.constructorArgs = ethers.AbiCoder.defaultAbiCoder().encode(CONSTRUCTOR_TYPES, a).slice(2); renderVerifyData();
   const factory=new ethers.ContractFactory(state.compiled.abi,state.compiled.bytecode,state.signer);
   log("请在钱包确认部署交易…"); const c=await factory.deploy(...a); const tx=c.deploymentTransaction();
@@ -505,8 +515,8 @@ async function refreshMint() {
   stats("mintStats",[["代币",`${name} (${symbol})`],["Mint 价格",`${fmt(price)} ETH`],["用户到账/次",fmt(userToken)],["自动加池/次",`${fmt(lpToken)} Token + ${Number(lpBP)/100}% ETH`],["进度",`${minted}/${maxCount}`],["我的次数",myCount.toString()],["Mint 状态",enabled?"开启":"关闭"],["可领分红",`${fmt(dividend)} ETH`]]);
 }
 async function refreshAdmin() {
-  const c=state.admin; if(!c)return; const [owner,router,factory,weth,taxWallet,lpReceiver,buy,sell,maxBuy,maxWallet,reserve,open,launch,price,userToken,lpToken,lpBP,maxCount,maxPer,minted]=await Promise.all([c.owner(),c.ROUTER(),c.FACTORY(),c.WETH(),c.taxWallet(),c.lpReceiver(),c.buyTaxBP(),c.sellTaxBP(),c.maxBuyAmount(),c.maxWalletAmount(),c.dividendReserve(),c.tradingOpen(),c.launchTime(),c.mintPrice(),c.userTokenPerMint(),c.liquidityTokenPerMint(),c.liquidityEthBP(),c.maxMintCount(),c.maxMintPerWallet(),c.mintedCount()]);
-  stats("adminStats",[["Owner",owner],["Router",router],["Factory / WETH",`${factory} / ${weth}`],["税费钱包",taxWallet],["LP 接收地址",lpReceiver],["买/卖税",`${Number(buy)/100}% / ${Number(sell)/100}%`],["限购",`单笔 ${fmt(maxBuy)} / 持仓 ${fmt(maxWallet)}`],["分红储备",`${fmt(reserve)} ETH`],["开盘",open?`已开盘`:(Number(launch)>0?new Date(Number(launch)*1000).toLocaleString():"未开盘")],["Mint 配置",`${fmt(price)} ETH；到账 ${fmt(userToken)}；加池 ${fmt(lpToken)} + ${Number(lpBP)/100}% ETH`],["Mint 进度",`${minted}/${maxCount}；每钱包 ${maxPer}`]]);
+  const c=state.admin; if(!c)return; const [owner,router,factory,weth,taxWallet,lpReceiver,lpMode,buy,sell,maxBuy,maxWallet,reserve,open,launch,price,userToken,lpToken,lpBP,maxCount,maxPer,minted]=await Promise.all([c.owner(),c.ROUTER(),c.FACTORY(),c.WETH(),c.taxWallet(),c.lpReceiver(),c.lpReceiverMode(),c.buyTaxBP(),c.sellTaxBP(),c.maxBuyAmount(),c.maxWalletAmount(),c.dividendReserve(),c.tradingOpen(),c.launchTime(),c.mintPrice(),c.userTokenPerMint(),c.liquidityTokenPerMint(),c.liquidityEthBP(),c.maxMintCount(),c.maxMintPerWallet(),c.mintedCount()]);
+  stats("adminStats",[["Owner",owner],["Router",router],["Factory / WETH",`${factory} / ${weth}`],["税费钱包",taxWallet],["LP 接收方式",Number(lpMode)===1?"Mint 用户接收":`指定钱包：${lpReceiver}`],["买/卖税",`${Number(buy)/100}% / ${Number(sell)/100}%`],["限购",`单笔 ${fmt(maxBuy)} / 持仓 ${fmt(maxWallet)}`],["分红储备",`${fmt(reserve)} ETH`],["开盘",open?`已开盘`:(Number(launch)>0?new Date(Number(launch)*1000).toLocaleString():"未开盘")],["Mint 配置",`${fmt(price)} ETH；到账 ${fmt(userToken)}；加池 ${fmt(lpToken)} + ${Number(lpBP)/100}% ETH`],["Mint 进度",`${minted}/${maxCount}；每钱包 ${maxPer}`]]);
 }
 async function adminAction(name) {
   const c=state.admin; if(!c)throw new Error("请先加载管理合约。"); const value=bool($("listValue").value);
@@ -529,6 +539,7 @@ async function adminAction(name) {
     setTaxes:()=>c.setTaxes(bp($("buyTax").value),bp($("sellTax").value)),
     setTaxWallet:()=>c.setTaxWallet($("taxWallet").value.trim()),
     setLimits:()=>c.setLimits(token($("maxBuyAmount").value),token($("maxWalletAmount").value)),
+    setLpReceiverMode:()=>c.setLpReceiverMode(Number($("lpReceiverMode").value || 0)),
     openTrading:()=>c.openTrading(),
     pause:()=>c.pause(),
     unpause:()=>c.unpause(),
@@ -544,8 +555,10 @@ async function run(button,fn){button&&(button.disabled=true);try{await fn()}catc
 document.addEventListener("DOMContentLoaded",()=>{
   recalcTotalPerMintFromSupply();
   applyAllocationMode();
+  applyLpReceiverMode();
   updatePlan();
   document.querySelector('[name="mintAllocationMode"]')?.addEventListener("input",applyAllocationMode);
+  document.querySelector('[name="lpReceiverMode"]')?.addEventListener("input",applyLpReceiverMode);
   document.querySelectorAll('[name="totalSupply"],[name="maxMintCount"],[name="mintSupplyPercentCalc"]').forEach(input=>input.addEventListener("input",recalcTotalPerMintFromSupply));
   document.querySelector('[name="totalTokenPerMintCalc"]')?.addEventListener("input",recalcPlanPercentFromTotalPerMint);
   document.querySelector('[name="userTokenPercentCalc"]')?.addEventListener("input",setLinkedMintFields);
